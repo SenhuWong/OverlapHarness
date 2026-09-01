@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "example-large-output",
+      "role": "solver output",
+      "kind": "directory",
+      "location": null,
+      "bytes": null,
+      "sha256": null,
+      "inventory": {"path": null, "sha256": null},
+      "retention": "MISSING"
+    }
+  ]
+}

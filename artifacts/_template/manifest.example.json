@@ -4,36 +4,55 @@
   "case": "example",
   "purpose": "question answered by this run",
   "parent_run_id": null,
-  "status": "CREATED",
   "started_at_utc": null,
   "finished_at_utc": null,
   "source": {
-    "harness": {"revision": null, "dirty": null, "patch": null},
+    "sampled_at_utc": null,
+    "harness": {
+      "revision": null,
+      "dirty": null,
+      "status_porcelain": {"path": null, "sha256": null},
+      "tracked_patch": {"path": null, "sha256": null},
+      "untracked_sources": []
+    },
     "solver": {
       "revision": null,
       "dirty": null,
-      "patch": null,
+      "status_porcelain": {"path": null, "sha256": null},
+      "tracked_patch": {"path": null, "sha256": null},
+      "untracked_sources": [],
       "nested_submodules": []
     }
   },
-  "inputs": [],
+  "criteria_definition": {
+    "path": "inputs/README.md",
+    "sha256": null
+  },
+  "inputs": [
+    {"path": "README.md", "bytes": null, "sha256": null}
+  ],
   "build": {
-    "command": null,
-    "configuration": null,
+    "command": {"argv": [], "cwd": null, "launcher": null},
+    "configuration": {},
+    "dependencies": [],
     "compiler": null,
     "mpi": null,
-    "executable": {"path": null, "sha256": null}
+    "executable": {"path": null, "bytes": null, "sha256": null}
   },
   "execution": {
-    "command": null,
-    "environment": null,
-    "resources": null,
+    "state": "CREATED",
+    "command": {"argv": [], "cwd": null, "launcher": null},
+    "environment": {"allowlisted": {}, "redacted": true},
+    "resources": {},
     "exit_code": null
+  },
+  "validation": {
+    "outcome": "NOT_RUN",
+    "verdict": "verdict.json"
   },
   "evidence": {
     "logs": [],
     "metrics": "metrics.json",
-    "verdict": "verdict.json",
     "external": "external.json"
   }
 }

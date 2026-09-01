@@ -42,8 +42,8 @@ that keeps the main context clean. Avoid concurrent edits to the same files.
 
 ## Experiment Contract
 
-`cases/<case>/` is the editable source of truth. Every execution uses an input
-snapshot at `artifacts/<case>/<run-id>/inputs/`.
+`cases/<case>/` is the editable source of truth. Every solver or case execution
+uses an input snapshot at `artifacts/<case>/<run-id>/inputs/`.
 
 A run must bind:
 
@@ -54,22 +54,29 @@ A run must bind:
 - exact command, environment summary, resources, timestamps, and exit status;
 - criterion-level validation results and evidence paths.
 
+Record commands as argument arrays and capture only an allowlisted environment;
+never dump the full process environment into an artifact.
+
 Inputs are immutable once execution begins. A terminal run directory is
 append-only; retry with a new run ID. Small manifests, logs, metrics, and
 verdicts may be committed. Large plotfiles, checkpoints, binaries, and archives
 stay outside Git and are indexed by path or URI, size, SHA-256, and retention.
 
-Accepted results require clean harness and solver revisions. Dirty exploratory
-runs are allowed only when marked non-accepting and their diffs are preserved.
+Accepted results require clean harness and solver source states sampled before
+the artifact directory is created. Dirty exploratory runs are non-accepting;
+preserve porcelain status, tracked diffs, and relevant untracked source files
+with hashes.
 
 ## Initial Roadmap
 
 - [x] Define repository and artifact contracts.
-- [ ] Authenticate and add `Amrex_Overlap` at `solver/` as a submodule.
-- [ ] Map the checked-out solver build, mesh, TIOGA, time-integration, and I/O
+- [x] Authenticate and add `Amrex_Overlap` at `solver/` as a submodule.
+- [x] Map the checked-out solver build, mesh, TIOGA, time-integration, and I/O
   paths in `ARCHITECTURE.md`.
+- [ ] Close and pin the solver's currently missing `vendor/` dependencies.
+- [ ] Expose a non-interactive coupled entry point and make it the first smoke
+  baseline.
 - [ ] Add one portable entry point for environment checks, build, run, record,
   and validate operations.
 - [ ] Add a minimal smoke case and a deterministic baseline artifact.
 - [ ] Add focused regression cases before architecture or performance work.
-

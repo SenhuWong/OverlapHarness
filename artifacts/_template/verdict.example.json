@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "outcome": "NOT_RUN",
+  "criteria_definition": {"path": "inputs/README.md", "sha256": null},
+  "criteria": [
+    {
+      "id": "example-required-criterion",
+      "required": true,
+      "status": "NOT_RUN",
+      "value": null,
+      "unit": null,
+      "operator": null,
+      "threshold": null,
+      "evidence": []
+    }
+  ]
+}

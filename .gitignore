@@ -1,0 +1,30 @@
+# Local build and editor state
+/build/
+/build-*/
+/.cache/
+/.venv/
+.DS_Store
+*~
+*.swp
+
+# Compiled and profiling output
+*.o
+*.a
+*.so
+*.dylib
+*.prof
+*.trace
+
+# Large run payloads: retain an entry in external.json instead
+/artifacts/**/raw/
+/artifacts/**/plotfiles/
+/artifacts/**/checkpoints/
+/artifacts/**/binaries/
+/artifacts/**/*.tar
+/artifacts/**/*.tar.gz
+/artifacts/**/*.tgz
+/artifacts/**/*.zip
+/artifacts/**/*.h5
+/artifacts/**/*.hdf5
+/artifacts/**/*.bp
+

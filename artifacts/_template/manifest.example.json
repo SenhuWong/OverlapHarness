@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "run_id": "run-YYYYMMDDTHHMMSSZ-shortid",
+  "case": "example",
+  "purpose": "question answered by this run",
+  "parent_run_id": null,
+  "status": "CREATED",
+  "started_at_utc": null,
+  "finished_at_utc": null,
+  "source": {
+    "harness": {"revision": null, "dirty": null, "patch": null},
+    "solver": {
+      "revision": null,
+      "dirty": null,
+      "patch": null,
+      "nested_submodules": []
+    }
+  },
+  "inputs": [],
+  "build": {
+    "command": null,
+    "configuration": null,
+    "compiler": null,
+    "mpi": null,
+    "executable": {"path": null, "sha256": null}
+  },
+  "execution": {
+    "command": null,
+    "environment": null,
+    "resources": null,
+    "exit_code": null
+  },
+  "evidence": {
+    "logs": [],
+    "metrics": "metrics.json",
+    "verdict": "verdict.json",
+    "external": "external.json"
+  }
+}

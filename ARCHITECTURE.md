@@ -121,18 +121,16 @@ it is empty, the superbuild selects wrappers from `PATH`.
 | `2d-euler` | 2 | `EULER` | `BackgroundSolver`, `RichtmyerMeshkovInstability`, `Riemann2D`, `ShockBubble`, `Sphere` |
 | `2d-sst` | 2 | `SST` | `BackgroundSolver` |
 | `2d-sa` | 2 | `SA` | `BackgroundSolver` |
-| `3d-euler` | 3 | `EULER` | `BackgroundSolver`, `TaylorGreenVortex` |
-| `3d-sst` | 3 | `SST` | `BackgroundSolver`, `TaylorGreenVortex` |
+| `3d-euler` | 3 | `EULER` | `BackgroundSolver`, `TaylorGreenVortex`, `Riemann3D` |
+| `3d-sst` | 3 | `SST` | `BackgroundSolver`, `TaylorGreenVortex`, `Riemann3D` |
 | `3d-sa` | 3 | `SA` | `BackgroundSolver`, `TaylorGreenVortex` |
 
-On 2026-09-10 all six Release configurations and all 13 selected executables
-first built successfully on the local GNU 13.3, MPICH 4.1, parallel HDF5 2.0.0
-toolchain. After the coupled update introduced SUNDIALS, the `2d-sst` variant
-was rebuilt with GNU 13.3, a harness-local Open MPI 4.1.6, parallel HDF5 2.0.0,
-and SUNDIALS 6.4.1. The other five variants have not yet been rebuilt against
-that dependency set. The 3D SA binaries remain compile-qualified only because
-their AMReX SA RHS kernels explicitly stop at runtime when the unsupported path
-is selected.
+On 2026-09-10 all six Release configurations and all 15 selected executables
+built successfully with GNU 13.3, a harness-local Open MPI 4.1.6, parallel
+HDF5 2.0.0, and SUNDIALS 6.4.1. All six `BackgroundSolver` binaries resolve
+`libmpi.so.40` from that Open MPI installation. This is build qualification;
+the 3D SA binaries remain compile-qualified only because their AMReX SA RHS
+kernels explicitly stop at runtime when the unsupported path is selected.
 
 The active `main()` calls `loader_test_samrai()` and enters the coupled path.
 It loads preprocessed unstructured partitions, registers TIOGA connectivity,
@@ -148,6 +146,13 @@ boundary-condition copy over-read diagnostic, HDF5 size-type narrowing,
 `#pragma once` in implementation files, and `MPICH_SKIP_MPICXX` redefinition.
 A prebuilt x86-64 METIS shared library is tracked under `solver/Depend/`, so
 portable builds must replace or explicitly qualify it.
+
+The first harness numerical case is `cases/naca0012-pitching-2d`. Its initial
+16-rank local run completed 100 coupled 2D SST physical steps and passed the
+case-level execution and finite-force criteria. The run record remains
+artifact-qualified as `INCOMPLETE` because the harness source snapshot included
+a pre-existing `.gitignore` modification; this does not change its numerical
+criterion results.
 
 Supported configure, build, cleanup, and run-record commands are defined in
 `docs/operations.md`; the rationale and extension rules for the matrix are in

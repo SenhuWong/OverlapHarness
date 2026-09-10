@@ -195,7 +195,15 @@ Remove one solver cache when changing configuration outside its named axes:
 
 ```sh
 cmake -E remove_directory artifacts/build/solver/2d-sst
+cmake -E remove_directory \
+  artifacts/build/superbuild/external/solver-2d-sst
+cmake --preset superbuild \
+  -DOVERLAP_MPI_ROOT="$PWD/artifacts/install/openmpi"
 ```
+
+The second directory contains the ExternalProject stamps. Removing only the
+variant cache leaves a stale “create directories” stamp and causes the next
+superbuild invocation to enter a directory that no longer exists.
 
 Remove all reproducible solver and shared-dependency state for a clean rebuild:
 

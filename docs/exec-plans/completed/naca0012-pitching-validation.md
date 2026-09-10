@@ -60,9 +60,9 @@ as the first repository validation case with a recorded 100-step local run.
    run assumptions, and initial acceptance criteria.
 5. [x] Apply and build any solver changes required for a deterministic,
    non-interactive 2D coupled run.
-6. [ ] Freeze the case into a new run record, run exactly 100 physical steps,
+6. [x] Freeze the case into a new run record, run exactly 100 physical steps,
    extract available metrics, and issue a criterion-level verdict.
-7. [ ] Update supported operations and architecture documentation, record exact
+7. [x] Update supported operations and architecture documentation, record exact
    checks and limitations, and move this plan to `completed/` only when the
    requested run and evidence are complete.
 
@@ -77,5 +77,41 @@ from the historical case or established from an independent source.
 
 ## Outcome
 
-In progress. The recovered 16-rank mesh preprocess and a one-step coupled smoke
-run both completed locally with exit code zero. The formal 100-step run remains.
+Completed on 2026-09-10.
+
+- Solver commit `26c0f50` merges the committed leading line through `456b6c2`,
+  adds SUNDIALS 6.4.1, removes required startup pauses, corrects the EnTT include
+  root, makes wall-distance HDF5 reads independent and path-safe, and wires two
+  MPI-aware CTest checks. Solver commit `4bf5a2f` then restricts `Riemann3D` to
+  the Euler and SST configurations that provide its initialization symbols.
+- `cmake --preset superbuild -DOVERLAP_MPI_ROOT=$PWD/artifacts/install/openmpi`
+  succeeded. The system MPICH
+  installation hung in a minimal `MPI_Init` probe, so Open MPI 4.1.6 was built
+  below `artifacts/` from the official archive with verified SHA-256
+  `44da277b8cdc234e71c62473305a09d63f4dcca292ca40335aab7c4bf0e6a566`.
+- `cmake --build --preset solver-matrix --parallel 4` completed with exit code
+  zero after stale MPICH variant caches and their ExternalProject stamps were
+  removed. All six `BackgroundSolver` binaries resolve Open MPI's local
+  `libmpi.so.40`. The final selected matrix contains 15 executables.
+- The first matrix migration attempt failed when CMake cleared the old
+  compiler-bound caches and then could not recover `HDF5_DIR`. The second
+  failed because the binary directories were removed without their
+  ExternalProject stamps. The clean build then exposed an unsupported
+  `Riemann3D`/3D-SA link (`sa_initdata`), which `4bf5a2f` resolves by expressing
+  the actual executable/model boundary. Logs are retained under
+  `artifacts/logs/solver-matrix-*.log`.
+- `ctest --test-dir artifacts/build/solver/2d-sst --output-on-failure` passed
+  2/2 tests in 0.41 seconds after the final matrix build.
+- Run `run-20260910T180036Z-de29ce85` completed preprocessing and exactly 100
+  physical steps on 16 Open MPI ranks in 257 seconds including validation. The
+  command exited zero, reached time 0.1, wrote 100 force rows from time 0 to
+  0.099, reported no non-finite states, and had empty stderr. Observed ranges
+  were `Cl=[1.00078, 1.07047]` and `Cd=[0.278894, 0.617563]`.
+- Every case-level criterion passed. The artifact-level verdict is
+  `INCOMPLETE`, as required by `ARCHITECTURE.md`, because the pre-run harness
+  snapshot contained the user's pre-existing `.gitignore` modification. The
+  solver snapshot was clean. All frozen-input and recorded-output hashes were
+  reverified after finalization.
+- `git diff --check` remains nonzero for inherited whitespace in the recovered
+  mesh and leading solver line. The mesh is preserved byte-for-byte with its
+  remote SHA-256; broad numerical-source formatting was deliberately excluded.

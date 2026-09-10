@@ -16,6 +16,7 @@ OverlapHarness/
 |-- CMakeLists.txt            dependency and six-variant superbuild
 |-- CMakePresets.json         supported configure/build entry points
 |-- .gitignore                generated and large-payload exclusions
+|-- .agents/skills/           project-local agent workflows and helpers
 |-- docs/                     design, operations, and execution plans
 |-- solver/                   Amrex_Overlap Git submodule
 |   |-- CMakeLists.txt        solver configuration and executable selection

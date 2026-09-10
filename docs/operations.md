@@ -1,7 +1,7 @@
 # Operations
 
 Run the commands below from the `OverlapHarness` repository root. They are the
-supported local build interface for the current CPU/MPI configuration.
+supported local build and validation interface for the current CPU/MPI setup.
 
 ## Initialize source dependencies
 
@@ -9,8 +9,8 @@ supported local build interface for the current CPU/MPI configuration.
 git submodule update --init --recursive
 ```
 
-This initializes `solver/` and the five nested vendor submodules. Do not build
-inside a vendor source directory.
+This initializes `solver/` and its six vendor submodules: AMReX, EnTT, GLM,
+HDF5, SUNDIALS, and yaml-cpp. Do not build inside a vendor source directory.
 
 ## Check the local toolchain
 
@@ -21,35 +21,80 @@ c++ --version
 gfortran --version
 mpicc --version
 mpicxx --version
-mpif90 --version
+mpifort --version
+mpiexec --version
 ```
 
-The configured compiler and MPI implementation form part of the build identity.
-Do not reuse an existing artifact build tree after changing either one.
+The C, C++, and Fortran wrappers, MPI implementation, and build type form one
+build identity. Do not reuse an artifact build tree after changing any of them.
+
+The system MPICH installation on the current WSL host hangs in `MPI_Init`.
+Open MPI 4.1.6 was therefore built locally under `artifacts/` with Fortran
+bindings, using the official release archive whose SHA-256 is
+`44da277b8cdc234e71c62473305a09d63f4dcca292ca40335aab7c4bf0e6a566`:
+
+```sh
+cmake -E make_directory artifacts/downloads artifacts/src \
+  artifacts/build/dependencies/openmpi
+curl --fail --location \
+  --output artifacts/downloads/openmpi-4.1.6.tar.gz \
+  https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.6.tar.gz
+printf '%s  %s\n' \
+  44da277b8cdc234e71c62473305a09d63f4dcca292ca40335aab7c4bf0e6a566 \
+  artifacts/downloads/openmpi-4.1.6.tar.gz | sha256sum --check
+tar -xzf artifacts/downloads/openmpi-4.1.6.tar.gz -C artifacts/src
+cd artifacts/build/dependencies/openmpi
+../../../src/openmpi-4.1.6/configure \
+  --prefix="$OLDPWD/artifacts/install/openmpi" \
+  --enable-mpi-fortran=usempi \
+  --disable-oshmem \
+  --without-verbs \
+  --without-ucx
+make --jobs 8
+make install
+cd "$OLDPWD"
+```
+
+An existing MPI installation is suitable only after a minimal program that
+calls `MPI_Init` and `MPI_Finalize` succeeds both directly and under the chosen
+launcher. Keep that probe and its output under `artifacts/`.
 
 ## Configure the superbuild
+
+Use the harness-local Open MPI installation on the current host:
+
+```sh
+cmake --preset superbuild \
+  -DOVERLAP_MPI_ROOT="$PWD/artifacts/install/openmpi"
+```
+
+On a machine with a working MPI implementation already on `PATH`, omit
+`OVERLAP_MPI_ROOT`:
 
 ```sh
 cmake --preset superbuild
 ```
 
-This creates only the orchestration cache at `artifacts/build/superbuild`.
-Dependency and solver builds start with the build commands below.
+The setting selects one coherent set of MPI compiler wrappers and launcher for
+HDF5, SUNDIALS, and every solver variant. Configuration creates only the
+orchestration cache at `artifacts/build/superbuild`.
 
-## Build the shared parallel HDF5 dependency
+## Build shared dependencies
 
 ```sh
 cmake --build --preset hdf5-parallel --parallel 8
+cmake --build --preset sundials-parallel --parallel 8
 ```
 
-The target configures HDF5 with `HDF5_ENABLE_PARALLEL=ON`, disables its tests,
-examples, language bindings, high-level library, and command-line tools, then
-installs the C library to `artifacts/install/hdf5`. Its build tree is
-`artifacts/build/dependencies/hdf5`.
+HDF5 is built with `HDF5_ENABLE_PARALLEL=ON` and installed at
+`artifacts/install/hdf5`. SUNDIALS builds its MPI-enabled ARKODE libraries and
+is installed at `artifacts/install/sundials`. Their build trees are
+`artifacts/build/dependencies/hdf5` and
+`artifacts/build/dependencies/sundials`. Tests, examples, unused SUNDIALS
+solver packages, HDF5 language bindings, and HDF5 tools are disabled.
 
-The solver targets depend on this target, so running it separately is optional.
-It is useful when validating a compiler/MPI environment before configuring any
-solver variant.
+Solver targets depend on both dependencies, so building them separately is
+optional. Separate builds are useful when qualifying a compiler/MPI setup.
 
 ## Build one solver variant
 
@@ -64,9 +109,10 @@ cmake --build --preset solver-3d-sst --parallel 8
 cmake --build --preset solver-3d-sa --parallel 8
 ```
 
-Each target first brings the shared parallel HDF5 installation up to date,
-then incrementally configures and builds its own directory under
-`artifacts/build/solver/`.
+Each target incrementally configures and builds its own directory under
+`artifacts/build/solver/`. The six directories isolate the two
+`AMReX_SPACEDIM` values and three `TURB_MODEL` values, including their generated
+Fortran modules and CMake caches.
 
 ## Build the complete matrix
 
@@ -74,50 +120,116 @@ then incrementally configures and builds its own directory under
 cmake --build --preset solver-matrix --parallel 8
 ```
 
-This builds all six independent solver configurations. Increase or reduce the
-parallel count to match the machine. Re-run `cmake --preset superbuild` after
-changing the root superbuild or presets; ordinary solver source changes are
-picked up by the next variant build.
+Increase or reduce the parallel count to match the machine. Re-run the
+configure preset after changing the root superbuild or presets. Rebuild every
+affected variant after changing shared or generated solver sources.
+
+## Run solver-native checks
+
+For the current `2d-sst` build:
+
+```sh
+ctest --test-dir artifacts/build/solver/2d-sst --output-on-failure
+```
+
+The checks generate a one-partition preprocessed mesh fixture and then exercise
+the cell-centered LSQ MeshLoader path with that fixture.
+
+## Run the NACA0012 pitching validation case
+
+Create a unique record and freeze the case inputs before execution:
+
+```sh
+harness_root=$PWD
+run_id="run-$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short=8 HEAD)"
+run_dir="$harness_root/artifacts/naca0012-pitching-2d/$run_id"
+mkdir -p "$run_dir/inputs" "$run_dir/logs"
+cp -a cases/naca0012-pitching-2d/. "$run_dir/inputs/"
+```
+
+Generate the 16-partition HDF5 mesh from the run directory:
+
+```sh
+cd "$run_dir"
+"$harness_root/artifacts/install/openmpi/bin/mpiexec" -n 1 \
+  "$harness_root/artifacts/build/solver/2d-sst/tests/mesh_preprocessor_2d" \
+  inputs/naca0012_sharp.grd \
+  --dim 2 \
+  --nparts 16 \
+  --levels 1 \
+  --reference-length 0.2 \
+  --skip-tecplot \
+  >logs/preprocess.stdout.log 2>logs/preprocess.stderr.log
+printf '%s\n' "$?" >logs/preprocess.exitcode
+```
+
+Run exactly 100 physical steps with the 2D SST executable. The local host has
+ten physical cores and twenty hardware threads, so the canonical recovered
+16-rank partition uses hardware-thread slots:
+
+```sh
+"$harness_root/artifacts/install/openmpi/bin/mpiexec" \
+  --use-hwthread-cpus --bind-to hwthread -n 16 \
+  "$harness_root/artifacts/build/solver/2d-sst/BackgroundSolver" \
+  inputs/inputs \
+  >logs/stdout.log 2>logs/stderr.log </dev/null
+printf '%s\n' "$?" >logs/run.exitcode
+```
+
+Validate the completed record:
+
+```sh
+python3 inputs/validate.py --run-dir . \
+  >logs/validate.stdout.log 2>logs/validate.stderr.log
+printf '%s\n' "$?" >logs/validate.exitcode
+cd "$harness_root"
+```
+
+The case definition and criterion meanings are in
+`cases/naca0012-pitching-2d/README.md`. Runs must not execute from the live case
+directory or a build directory. Retain failed attempts as evidence.
 
 ## Clean generated build state
 
-Remove one solver cache when changing a configuration outside its named axes:
+Remove one solver cache when changing configuration outside its named axes:
 
 ```sh
 cmake -E remove_directory artifacts/build/solver/2d-sst
 ```
 
-Remove all reproducible build and dependency install state for a clean rebuild:
+Remove all reproducible solver and shared-dependency state for a clean rebuild:
 
 ```sh
-cmake -E remove_directory artifacts/build
+cmake -E remove_directory artifacts/build/superbuild
+cmake -E remove_directory artifacts/build/solver
+cmake -E remove_directory artifacts/build/dependencies/hdf5
+cmake -E remove_directory artifacts/build/dependencies/sundials
 cmake -E remove_directory artifacts/install/hdf5
+cmake -E remove_directory artifacts/install/sundials
 ```
 
-These commands do not remove case/run records elsewhere under `artifacts/`.
+These commands retain the independently installed MPI toolchain and case run
+records elsewhere under `artifacts/`.
 
-## Legacy manual HDF5 install
+## Direct solver configuration
 
-The solver retains `solver/vendor/HDF5/install/cmake` as a compatibility
-default for direct builds. A direct solver configuration may select another
-parallel HDF5 installation explicitly:
+The superbuild is the supported path. For focused CMake debugging, an
+equivalent direct 2D SST configuration is:
 
 ```sh
 cmake -S solver -B artifacts/build/solver/2d-sst \
   -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER="$PWD/artifacts/install/openmpi/bin/mpicc" \
+  -DCMAKE_CXX_COMPILER="$PWD/artifacts/install/openmpi/bin/mpicxx" \
+  -DCMAKE_Fortran_COMPILER="$PWD/artifacts/install/openmpi/bin/mpifort" \
+  -DMPIEXEC_EXECUTABLE="$PWD/artifacts/install/openmpi/bin/mpiexec" \
   -DAMReX_SPACEDIM=2 \
   -DTURB_MODEL=SST \
-  -DHDF5_DIR="$PWD/artifacts/install/hdf5/cmake"
+  -DHDF5_DIR="$PWD/artifacts/install/hdf5/cmake" \
+  -DSUNDIALS_DIR="$PWD/artifacts/install/sundials/lib/cmake/sundials"
 cmake --build artifacts/build/solver/2d-sst --parallel 8
 ```
 
-The superbuild is preferred because it records the dependency relationship and
-does not dirty the HDF5 submodule.
-
-## Run and validation output
-
-Do not run an executable from its build directory or from a live case source
-directory. Freeze the selected case inputs into a new
-`artifacts/<case>/<run-id>/inputs/` directory and execute from that run record.
-Keep stdout, stderr, plotfiles, checkpoints, metrics, and the final verdict in
-the corresponding artifact paths defined by `ARCHITECTURE.md`.
+The solver retains `solver/vendor/HDF5/install/cmake` and the analogous vendor
+SUNDIALS install path as compatibility defaults. Do not populate those paths
+for harness builds because generated installations would dirty submodules.

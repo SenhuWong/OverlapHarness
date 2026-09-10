@@ -26,7 +26,7 @@ OverlapHarness/
 |   |-- MathTools/            mesh/search geometry utilities
 |   |-- Exec/                 executable-specific sources and AMReX inputs
 |   |-- bg_inputs/            coupled scene, grid, and background inputs
-|   `-- vendor/               five nested source submodules
+|   `-- vendor/               six nested source submodules
 |-- cases/
 |   `-- <case>/
 |       |-- README.md         purpose, parameters, and acceptance criteria
@@ -44,10 +44,10 @@ OverlapHarness/
 
 The harness repository does not copy solver or dependency history. Its
 `solver/` gitlink selects the solver revision used by cases, tools, and recorded
-experiments. The solver repository owns five nested vendor gitlinks under
-`solver/vendor/`: HDF5, AMReX, EnTT, GLM, and yaml-cpp. A recursive submodule
-initialization must reproduce all six source identities without generated
-files.
+experiments. The solver repository owns six nested vendor gitlinks under
+`solver/vendor/`: HDF5, AMReX, EnTT, GLM, yaml-cpp, and SUNDIALS. A recursive
+submodule initialization must reproduce all seven source identities, including
+the solver gitlink, without generated files.
 
 Builds and installs never write into either Git worktree. They belong under the
 harness-level `artifacts/` tree. A solver change is committed in `solver/`
@@ -59,14 +59,14 @@ uncommitted submodule state.
 | Path | Observed responsibility |
 | --- | --- |
 | `solver/CMakeLists.txt` | Configures AMReX, parallel HDF5, MPI-facing libraries, turbulence policy, and executable targets. |
-| `solver/source/main.cpp` | Contains the active AMReX entry point and the currently dormant coupled orchestration function. |
+| `solver/source/main.cpp` | Contains the active AMReX entry point and coupled mesh loading, connectivity, exchange, and advance orchestration. |
 | `solver/source/AmrLevelRans/` | AMReX state, RK4 advance, model policies, blank-aware Cartesian RHS, AMR patch exposure, and coupling callbacks. |
 | `solver/source/MeshLoader.*` | Partitions and loads unstructured grids, builds solver mesh data, and registers TIOGA blocks. |
 | `solver/UnstructSolver/source/` | Owns unstructured meshes, MPI halo exchange, flux and turbulence strategies, and LUSGS/Dual-LUSGS advance. |
 | `solver/UniTioga/source/` | Registers mesh and Cartesian blocks and performs hole cutting, donor search, interpolation, blanking, and data exchange. |
 | `solver/MathTools/source/` | Provides ADT, bounding-box, geometry, and low-level numerical utilities. |
 | `solver/Exec/*` | Provides problem-specific Fortran/C++ sources and AMReX input files selected by CMake. |
-| `solver/bg_inputs/` | Holds coupled NACA scene and grid examples referenced by the dormant coupled path. |
+| `solver/bg_inputs/` | Holds coupled scene, grid, and background-input examples. Harness validation inputs live under `cases/`. |
 
 The implemented coupled data flow is:
 
@@ -87,14 +87,15 @@ inner iterations; the Cartesian path uses RK4 and blank-aware RHS kernels.
 
 ## Build Boundary
 
-The root superbuild owns one parallel HDF5 build and six independent solver
-configurations:
+The root superbuild owns shared parallel HDF5 and SUNDIALS builds plus six
+independent solver configurations:
 
 ```text
 artifacts/
 |-- build/
 |   |-- superbuild/           CMake orchestration cache and stamps
 |   |-- dependencies/hdf5/    parallel HDF5 build tree
+|   |-- dependencies/sundials/ SUNDIALS build tree
 |   `-- solver/
 |       |-- 2d-euler/
 |       |-- 2d-sst/
@@ -102,14 +103,18 @@ artifacts/
 |       |-- 3d-euler/
 |       |-- 3d-sst/
 |       `-- 3d-sa/
-`-- install/hdf5/             shared parallel HDF5 installation
+|-- install/hdf5/             shared parallel HDF5 installation
+`-- install/sundials/         shared SUNDIALS installation
 ```
 
 `AMReX_SPACEDIM` changes AMReX configuration and compiled behavior.
 `TURB_MODEL` changes compile definitions, model-specific Fortran sources, and
 the generated `turb_indices.f90`. Each combination therefore owns a separate
-CMake cache and generated-module directory. HDF5 may be shared only while the
-compiler, MPI implementation, HDF5 options, and build type remain identical.
+CMake cache and generated-module directory. HDF5 and SUNDIALS may be shared
+only while the compiler, MPI implementation, dependency options, and build
+type remain identical. `OVERLAP_MPI_ROOT` binds the MPI C, C++, and Fortran
+wrappers and launcher across both dependencies and all solver variants; when
+it is empty, the superbuild selects wrappers from `PATH`.
 
 | Variant | Dimension | Model | Selected executables |
 | --- | ---: | --- | --- |
@@ -121,25 +126,28 @@ compiler, MPI implementation, HDF5 options, and build type remain identical.
 | `3d-sa` | 3 | `SA` | `BackgroundSolver`, `TaylorGreenVortex` |
 
 On 2026-09-10 all six Release configurations and all 13 selected executables
-built successfully on the local GNU 13.3, MPICH 4.1, parallel HDF5 2.0.0
-toolchain. This is build qualification only; no numerical case has yet been run
-or validated from these trees. The 3D SA binaries are compile-qualified, but
-their AMReX SA RHS kernels explicitly stop at runtime because only the 2D
-kernel is implemented.
+first built successfully on the local GNU 13.3, MPICH 4.1, parallel HDF5 2.0.0
+toolchain. After the coupled update introduced SUNDIALS, the `2d-sst` variant
+was rebuilt with GNU 13.3, a harness-local Open MPI 4.1.6, parallel HDF5 2.0.0,
+and SUNDIALS 6.4.1. The other five variants have not yet been rebuilt against
+that dependency set. The 3D SA binaries remain compile-qualified only because
+their AMReX SA RHS kernels explicitly stop at runtime when the unsupported path
+is selected.
 
-The default `main()` does not enter the coupled flow: its call to
-`loader_test_samrai()` is commented. It initializes AMReX, writes a plotfile,
-and advances AMR time steps. The coupled function contains mesh loading, TIOGA
-connectivity, callback registration, and Dual-LUSGS exchange, but it and the
-active AMReX setup still contain interactive `std::cin.get()` pauses.
-`CartWrapper` is fully commented and is not an active abstraction.
+The active `main()` calls `loader_test_samrai()` and enters the coupled path.
+It loads preprocessed unstructured partitions, registers TIOGA connectivity,
+constructs the AMReX hierarchy, and advances the coupled solvers. Required
+startup paths are non-interactive; diagnostic pauses remain only on exceptional
+failure paths. `CartWrapper` is fully commented and is not an active
+abstraction.
 
-No CTest target is registered. Current builds also report unresolved warnings,
-including an AMReX boundary-condition copy over-read diagnostic, HDF5 size-type
-narrowing, and `MPICH_SKIP_MPICXX` redefinition. A prebuilt x86-64 METIS shared
-library is tracked under `solver/Depend/`, so portable builds must replace or
-explicitly qualify it. AMReX restart and checkpoint overrides currently throw
-“not implemented”.
+The solver registers two CTest checks: generation of a one-partition
+preprocessed mesh fixture and a cell-centered LSQ MeshLoader test consuming
+that fixture. Current builds still report warnings including an AMReX
+boundary-condition copy over-read diagnostic, HDF5 size-type narrowing,
+`#pragma once` in implementation files, and `MPICH_SKIP_MPICXX` redefinition.
+A prebuilt x86-64 METIS shared library is tracked under `solver/Depend/`, so
+portable builds must replace or explicitly qualify it.
 
 Supported configure, build, cleanup, and run-record commands are defined in
 `docs/operations.md`; the rationale and extension rules for the matrix are in

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "recovered_at_utc": "2026-09-10T17:54:06Z",
+  "remote": {
+    "host_alias": "ws102",
+    "repository": "/home/ws102/dev-codes/Amrex_Overlap",
+    "observed_head": "509148149e02388a1c53abd2c9f12009b2ef9c6f",
+    "observed_worktree_dirty": true,
+    "committed_leading_revision": "456b6c2",
+    "historical_run_directory": "/home/ws102/dev-codes/Amrex_Overlap/build-2d-sst/big_naca.wzm"
+  },
+  "recovered_files": [
+    {
+      "path": "naca0012_sharp.grd",
+      "remote_sha256": "eba052cd0522890ceb243ca8a3646c7e103c07dd2fc5bcd93e0fe52cc6aca0eb"
+    },
+    {
+      "path": "historical-wzm_inputs",
+      "remote_sha256": "807e1ef87dc1fa41268fe4aa71ec3c2413d55a9c6d5e872a4d6024438156230c"
+    },
+    {
+      "path": "historical-Ranswzm.sne",
+      "remote_sha256": "c385246d3b13b6465c82911a0adefeb0d784745dadf850120e70f052c51452e0"
+    },
+    {
+      "path": "historical-ClCdDualParallelv_0",
+      "remote_sha256": "446a55bb15dd97852d22494e538308c801722a7dfd8d15785f87e2aa6dd15623"
+    }
+  ]
+}

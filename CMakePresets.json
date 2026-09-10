@@ -23,6 +23,11 @@
       "targets": ["hdf5-parallel"]
     },
     {
+      "name": "sundials-parallel",
+      "configurePreset": "superbuild",
+      "targets": ["sundials-parallel"]
+    },
+    {
       "name": "solver-2d-euler",
       "configurePreset": "superbuild",
       "targets": ["solver-2d-euler"]

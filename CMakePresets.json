@@ -1,0 +1,61 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "superbuild",
+      "displayName": "OverlapHarness release superbuild",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/artifacts/build/superbuild",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "hdf5-parallel",
+      "configurePreset": "superbuild",
+      "targets": ["hdf5-parallel"]
+    },
+    {
+      "name": "solver-2d-euler",
+      "configurePreset": "superbuild",
+      "targets": ["solver-2d-euler"]
+    },
+    {
+      "name": "solver-2d-sst",
+      "configurePreset": "superbuild",
+      "targets": ["solver-2d-sst"]
+    },
+    {
+      "name": "solver-2d-sa",
+      "configurePreset": "superbuild",
+      "targets": ["solver-2d-sa"]
+    },
+    {
+      "name": "solver-3d-euler",
+      "configurePreset": "superbuild",
+      "targets": ["solver-3d-euler"]
+    },
+    {
+      "name": "solver-3d-sst",
+      "configurePreset": "superbuild",
+      "targets": ["solver-3d-sst"]
+    },
+    {
+      "name": "solver-3d-sa",
+      "configurePreset": "superbuild",
+      "targets": ["solver-3d-sa"]
+    },
+    {
+      "name": "solver-matrix",
+      "configurePreset": "superbuild",
+      "targets": ["solver-matrix"]
+    }
+  ]
+}

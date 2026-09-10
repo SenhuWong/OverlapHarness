@@ -1,6 +1,8 @@
 # Local build and editor state
 /build/
 /build-*/
+/artifacts/build/
+/artifacts/install/
 /.cache/
 /.venv/
 .DS_Store

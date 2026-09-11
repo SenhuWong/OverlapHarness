@@ -188,7 +188,11 @@ The case definition and criterion meanings are in
 `cases/naca0012-pitching-2d/README.md`. Runs must not execute from the live case
 directory or a build directory. Retain failed attempts as evidence.
 
-## Run the 10-rank 2D SA profile through time 30
+## Reproduce the rejected 10-rank 2D SA run through time 30
+
+This workflow reproduces a completed diagnostic attempt. It is preserved for
+audit and restart inspection, but its force history is not accepted as
+dynamic-stall validation. The profile README records the numerical reasons.
 
 Build and check the SA variant:
 
@@ -197,7 +201,7 @@ cmake --build --preset solver-2d-sa --parallel 10
 ctest --test-dir artifacts/build/solver/2d-sa --output-on-failure
 ```
 
-Create a new artifact, freeze the shared case, and overlay the tested SA
+Create a new artifact, freeze the shared case, and overlay the recorded SA
 profile before preprocessing:
 
 ```sh
@@ -229,9 +233,9 @@ Generate all three overset-mask resolutions required by AMR levels 0 through
 printf '%s\n' "$?" >logs/preprocess.exitcode
 ```
 
-The WSL allocation qualified on 2026-09-11 exposed seven physical cores and
-thirteen hardware threads. It therefore ran ten MPI ranks bound to hardware
-threads:
+The WSL allocation used on 2026-09-11 exposed seven physical cores and thirteen
+hardware threads. The diagnostic attempt therefore ran ten MPI ranks bound to
+hardware threads:
 
 ```sh
 /usr/bin/time -v -o logs/resource.log \
@@ -257,9 +261,10 @@ printf '%s\n' "$?" >logs/validate.exitcode
 cd "$harness_root"
 ```
 
-The validator checks completion and finite force history. Also verify all six
-AMReX/unstructured checkpoint pairs listed in the profile README before
-finalizing the artifact.
+The validator checks completion and finite force history. It does not validate
+force accuracy, temporal convergence, pseudo-time convergence, dynamic stall,
+or partition independence. Also verify all six AMReX/unstructured checkpoint
+pairs listed in the profile README before finalizing the artifact.
 
 ## Clean generated build state
 

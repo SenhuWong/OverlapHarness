@@ -154,14 +154,17 @@ artifact-qualified as `INCOMPLETE` because the harness source snapshot included
 a pre-existing `.gitignore` modification; this does not change its numerical
 criterion results.
 
-The same case now carries a tested `profiles/sa-t30` configuration. On
-2026-09-11, the 2D SA solver ran 3000 steps on 10 MPI ranks through physical
-time 30 with AMR levels 0 through 2 and four SUNDIALS GMRES pseudo steps. It
-produced 3000 finite force samples and six synchronized AMReX/unstructured
-checkpoint pairs, including the terminal step. All case criteria passed. Its
-artifact qualification is also `INCOMPLETE` solely because the captured
-harness snapshot retained the same pre-existing `.gitignore` modification;
-the solver snapshot was clean.
+The same case carries a rejected diagnostic `profiles/sa-t30` configuration.
+On 2026-09-11, the 2D SA solver completed 3000 steps on 10 MPI ranks through
+physical time 30 and produced finite force history and synchronized restart
+records. Subsequent review rejected the run as physical validation: it used
+`dt=0.01`, CFL 1.0, four fixed pseudo steps with no residual stopping threshold,
+and fixed-point mode 2, which applied Anderson acceleration to the partitioned
+Dual-LUSGS map instead of executing the global SPGMR solve. Stored-Jacobian
+reuse was disabled, and the mesh-motion speed estimator reported zero during
+pitching. The artifact therefore establishes execution and restart integrity
+only. Its separate `INCOMPLETE` artifact qualification records the captured
+pre-existing `.gitignore` modification; the solver snapshot was clean.
 
 Supported configure, build, cleanup, and run-record commands are defined in
 `docs/operations.md`; the rationale and extension rules for the matrix are in

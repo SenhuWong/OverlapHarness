@@ -1,4 +1,4 @@
-# NACA0012 pitching 2D SA run to time 30
+# Rejected NACA0012 pitching 2D SA diagnostic run to time 30
 
 ## Objective
 
@@ -19,13 +19,18 @@ or resume the calculation.
 - terminal condition: step 3000 at time 30;
 - AMR: maximum level 2, no subcycling, CFL 1.0;
 - SA far-field ratio: `nu_tilde / nu = 3.0`;
-- stored-Jacobian SUNDIALS GMRES: four pseudo steps per physical step;
+- four inner pseudo steps per physical step; runtime fixed-point mode 2 used
+  Anderson acceleration around the legacy partitioned Dual-LUSGS map, not the
+  global SPGMR solve;
+- stored-Jacobian reuse disabled and no residual stopping threshold active;
 - plot and bulk unstructured snapshots disabled; coupled AMReX and
   unstructured restart checkpoints written every 500 steps.
 
-These settings extend the solver's previously recorded 10-rank SA validation
-configuration from time 5.2 to time 30. They do not change the pitching case's
-physical definition.
+These settings were adapted from the solver's earlier short 10-rank SA run,
+which ended at time 5.2, well before the maximum pitch angle. The extension
+also used a 100 by 100 base background grid rather than the 200 by 200 grid
+recorded in that report. Completion of the extension does not qualify its
+physical result.
 
 ## Acceptance criteria
 
@@ -60,7 +65,16 @@ baseline.
 - 2026-09-11: two-step preflight passed with the intended SA/GMRES and AMR
   configuration.
 - 2026-09-11: the formal 3000-step run completed in 2508.37 seconds with exit
-  code zero. All case criteria passed.
+  code zero. Its original completion and finite-value checks passed.
+- 2026-09-11: review of the lift curve and runtime-selected solver path rejected
+  the run as physical validation. `dt` and CFL were each relaxed by a factor of
+  ten relative to the original smoke profile, only four fixed pseudo steps were
+  performed without residual stopping, fixed-point mode 2 bypassed SPGMR for
+  an Anderson-accelerated partitioned Dual-LUSGS map, stored-Jacobian reuse was
+  off, and the mesh-motion speed estimate stayed zero. Time 30 covers only
+  0.339 of the approximately 88.50-unit pitching period and stops on the first
+  downstroke, so the run cannot establish a closed hysteresis loop or periodic
+  response.
 
 ## Outcome
 
@@ -72,7 +86,10 @@ through 3000, and each unstructured checkpoint contains ten rank files.
 
 The run record is
 `artifacts/naca0012-pitching-2d/run-20260911T091449Z-9238956-sa10-t30`.
-Case outcome is `PASS`; artifact qualification is `INCOMPLETE` because the
-source snapshot captured the user's pre-existing `.gitignore` modification.
-This run establishes stable completion and finite force history through time
-30. No experimental SA accuracy criterion was evaluated.
+The original machine-readable case outcome is `PASS` because the validator
+only checked completion, finite force values, explicit bad-state diagnostics,
+and checkpoint presence. That verdict is insufficient for numerical or
+physical acceptance and is withdrawn as a validation claim. The artifact
+qualification remains `INCOMPLETE` because the source snapshot captured the
+user's pre-existing `.gitignore` modification. The retained run establishes
+execution and restart integrity through time 30 only.

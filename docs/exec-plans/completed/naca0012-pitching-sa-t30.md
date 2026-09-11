@@ -10,7 +10,8 @@ or resume the calculation.
 ## Frozen numerical configuration
 
 - solver variant: `AMReX_SPACEDIM=2`, `TURB_MODEL=SA`, Release;
-- MPI allocation: 10 ranks bound one per physical core;
+- MPI allocation: 10 ranks bound to hardware threads; the WSL allocation
+  exposed seven physical cores and thirteen hardware threads;
 - mesh partition count: 10;
 - free stream and motion: Mach 0.4, Reynolds number 3.4e6, mean angle 6.25
   degrees, amplitude 8.5 degrees, reduced frequency 0.075;
@@ -56,4 +57,22 @@ baseline.
 ## Status
 
 - 2026-09-11: 2D SA rebuild succeeded; both solver-native CTest checks passed.
-- Run preparation is in progress.
+- 2026-09-11: two-step preflight passed with the intended SA/GMRES and AMR
+  configuration.
+- 2026-09-11: the formal 3000-step run completed in 2508.37 seconds with exit
+  code zero. All case criteria passed.
+
+## Outcome
+
+The run reached step 3000 and time 30 with 3000 finite force rows spanning
+time 0 through 29.99 and no explicit non-finite or bad-state diagnostic. The
+force ranges were `Cl=[0.589711, 1.58039]` and
+`Cd=[0.0597362, 0.900858]`. Six paired checkpoints were recorded at steps 500
+through 3000, and each unstructured checkpoint contains ten rank files.
+
+The run record is
+`artifacts/naca0012-pitching-2d/run-20260911T091449Z-9238956-sa10-t30`.
+Case outcome is `PASS`; artifact qualification is `INCOMPLETE` because the
+source snapshot captured the user's pre-existing `.gitignore` modification.
+This run establishes stable completion and finite force history through time
+30. No experimental SA accuracy criterion was evaluated.

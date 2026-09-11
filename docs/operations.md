@@ -163,9 +163,8 @@ cd "$run_dir"
 printf '%s\n' "$?" >logs/preprocess.exitcode
 ```
 
-Run exactly 100 physical steps with the 2D SST executable. The local host has
-ten physical cores and twenty hardware threads, so the canonical recovered
-16-rank partition uses hardware-thread slots:
+Run exactly 100 physical steps with the 2D SST executable. Use hardware-thread
+slots when the local MPI allocation exposes fewer than 16 physical-core slots:
 
 ```sh
 "$harness_root/artifacts/install/openmpi/bin/mpiexec" \
@@ -188,6 +187,79 @@ cd "$harness_root"
 The case definition and criterion meanings are in
 `cases/naca0012-pitching-2d/README.md`. Runs must not execute from the live case
 directory or a build directory. Retain failed attempts as evidence.
+
+## Run the 10-rank 2D SA profile through time 30
+
+Build and check the SA variant:
+
+```sh
+cmake --build --preset solver-2d-sa --parallel 10
+ctest --test-dir artifacts/build/solver/2d-sa --output-on-failure
+```
+
+Create a new artifact, freeze the shared case, and overlay the tested SA
+profile before preprocessing:
+
+```sh
+harness_root=$PWD
+run_id="run-$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short=8 HEAD)-sa10-t30"
+run_dir="$harness_root/artifacts/naca0012-pitching-2d/$run_id"
+mkdir -p "$run_dir/inputs" "$run_dir/logs"
+cp -a cases/naca0012-pitching-2d/. "$run_dir/inputs/"
+cp cases/naca0012-pitching-2d/profiles/sa-t30/inputs \
+  "$run_dir/inputs/inputs"
+cp cases/naca0012-pitching-2d/profiles/sa-t30/Ranswzm.sne \
+  "$run_dir/inputs/Ranswzm.sne"
+cd "$run_dir"
+```
+
+Generate all three overset-mask resolutions required by AMR levels 0 through
+2. The partition count must match the MPI rank count:
+
+```sh
+"$harness_root/artifacts/install/openmpi/bin/mpiexec" -n 1 \
+  "$harness_root/artifacts/build/solver/2d-sa/tests/mesh_preprocessor_2d" \
+  inputs/naca0012_sharp.grd \
+  --dim 2 \
+  --nparts 10 \
+  --levels 3 \
+  --reference-length 0.2 \
+  --skip-tecplot \
+  >logs/preprocess.stdout.log 2>logs/preprocess.stderr.log
+printf '%s\n' "$?" >logs/preprocess.exitcode
+```
+
+The WSL allocation qualified on 2026-09-11 exposed seven physical cores and
+thirteen hardware threads. It therefore ran ten MPI ranks bound to hardware
+threads:
+
+```sh
+/usr/bin/time -v -o logs/resource.log \
+  "$harness_root/artifacts/install/openmpi/bin/mpiexec" \
+  --use-hwthread-cpus --bind-to hwthread -n 10 \
+  "$harness_root/artifacts/build/solver/2d-sa/BackgroundSolver" \
+  inputs/inputs \
+  >logs/stdout.log 2>logs/stderr.log </dev/null
+printf '%s\n' "$?" >logs/run.exitcode
+```
+
+This advances 3000 physical steps with `dt=0.01`. Paired restart records are
+written every 500 steps below `raw/amrex/` and `raw/unstruct/`. Validate the
+terminal state with:
+
+```sh
+python3 inputs/validate.py --run-dir . \
+  --expected-steps 3000 \
+  --expected-final-time 30 \
+  --expected-dt 0.01 \
+  >logs/validate.stdout.log 2>logs/validate.stderr.log
+printf '%s\n' "$?" >logs/validate.exitcode
+cd "$harness_root"
+```
+
+The validator checks completion and finite force history. Also verify all six
+AMReX/unstructured checkpoint pairs listed in the profile README before
+finalizing the artifact.
 
 ## Clean generated build state
 

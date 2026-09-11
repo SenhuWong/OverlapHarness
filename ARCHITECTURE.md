@@ -154,6 +154,15 @@ artifact-qualified as `INCOMPLETE` because the harness source snapshot included
 a pre-existing `.gitignore` modification; this does not change its numerical
 criterion results.
 
+The same case now carries a tested `profiles/sa-t30` configuration. On
+2026-09-11, the 2D SA solver ran 3000 steps on 10 MPI ranks through physical
+time 30 with AMR levels 0 through 2 and four SUNDIALS GMRES pseudo steps. It
+produced 3000 finite force samples and six synchronized AMReX/unstructured
+checkpoint pairs, including the terminal step. All case criteria passed. Its
+artifact qualification is also `INCOMPLETE` solely because the captured
+harness snapshot retained the same pre-existing `.gitignore` modification;
+the solver snapshot was clean.
+
 Supported configure, build, cleanup, and run-record commands are defined in
 `docs/operations.md`; the rationale and extension rules for the matrix are in
 `docs/build-layout.md`.

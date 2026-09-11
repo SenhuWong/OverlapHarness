@@ -115,3 +115,8 @@ The validator reports differences from the recovered force series as advisory
 metrics. Those differences do not affect the verdict because the recovered
 binary cannot be bound to a clean source revision and the historical AMReX and
 unstructured free-stream parameters disagreed.
+
+The tested 10-rank 2D SA configuration through time 30 is stored separately in
+`profiles/sa-t30/`. Its README defines the SA acceptance criteria; the
+top-level `inputs` and `Ranswzm.sne` remain the original 100-step SST smoke
+profile.

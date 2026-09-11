@@ -33,3 +33,10 @@ diagnostic, and all six scheduled checkpoint pairs. They establish execution
 and restart integrity only. They do not accept the force history as a
 validation result. The historical force file in the base case is an SST trace
 at another time step and is not an SA accuracy baseline.
+
+A one-rank control using identical numerical and physical inputs also completed
+to time 30. Near maximum angle and the first downstroke (`t >= 18`), its `Cl`
+history differs from the ten-rank run by only `3.74e-5` RMS and `6.0e-5`
+maximum absolute difference. Reducing the partition count therefore did not
+restore the expected lift drop. The evidence is recorded in
+`artifacts/naca0012-pitching-2d/run-20260911T135853Z-e86b75a3-sa1-t30-control`.

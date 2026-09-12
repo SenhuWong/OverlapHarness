@@ -56,6 +56,8 @@ def main() -> int:
     parser.add_argument("--expected-steps", type=int, default=100)
     parser.add_argument("--expected-final-time", type=float, default=0.1)
     parser.add_argument("--expected-dt", type=float, default=0.001)
+    parser.add_argument("--expected-force-samples", type=int)
+    parser.add_argument("--expected-force-dt", type=float)
     args = parser.parse_args()
 
     run_dir = args.run_dir.resolve()
@@ -95,8 +97,15 @@ def main() -> int:
     # The coupled driver writes force coefficients at the beginning of each
     # physical step.  A 100-step run therefore records t=0 through t=0.099,
     # while the solver completion line reports STEP=100 and TIME=0.1.
-    expected_samples = args.expected_steps
-    expected_force_final_time = (args.expected_steps - 1) * args.expected_dt
+    expected_samples = (
+        args.expected_force_samples
+        if args.expected_force_samples is not None
+        else args.expected_steps
+    )
+    expected_force_dt = (
+        args.expected_force_dt if args.expected_force_dt is not None else args.expected_dt
+    )
+    expected_force_final_time = (expected_samples - 1) * expected_force_dt
     finite = bool(rows) and all(math.isfinite(value) for row in rows for value in row)
     times = [row[0] for row in rows]
     monotonic = bool(times) and all(b > a for a, b in zip(times, times[1:]))

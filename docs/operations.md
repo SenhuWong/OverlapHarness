@@ -266,6 +266,84 @@ force accuracy, temporal convergence, pseudo-time convergence, dynamic stall,
 or partition independence. Also verify all six AMReX/unstructured checkpoint
 pairs listed in the profile README before finalizing the artifact.
 
+## Run the candidate workstation-102 SA profile locally
+
+This profile preserves the conservative workstation-102 nonlinear controls and
+8-rank preprocessing contract. It uses the current solver's required
+`amr.blocking_factor=4`; the original workstation input with value 16 remains
+beside the profile for audit.
+
+Build the current 2D SA variant, create a unique artifact, and freeze only the
+authoritative source inputs:
+
+```sh
+cmake --build --preset solver-2d-sa --parallel 8
+ctest --test-dir artifacts/build/solver/2d-sa --output-on-failure
+
+harness_root=$PWD
+profile=cases/naca0012-pitching-2d/profiles/sa-102-settings-t30
+run_id="run-$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short=8 HEAD)-sa8-102-t30"
+run_dir="$harness_root/artifacts/naca0012-pitching-2d/$run_id"
+mkdir -p "$run_dir/inputs" "$run_dir/logs" \
+  "$run_dir/raw/amrex" "$run_dir/raw/unstruct"
+cp "$profile/inputs" "$run_dir/inputs/inputs"
+cp "$profile/Ranswzm.sne" "$run_dir/inputs/Ranswzm.sne"
+cp "$profile/profile.json" "$run_dir/inputs/profile.json"
+cp "$profile/README.md" "$run_dir/inputs/README.md"
+cp cases/naca0012-pitching-2d/naca0012_sharp.grd "$run_dir/inputs/"
+cp cases/naca0012-pitching-2d/validate.py "$run_dir/inputs/"
+ln -s raw/amrex "$run_dir/amrex_output"
+ln -s raw/unstruct "$run_dir/unstruct_output"
+cd "$run_dir"
+```
+
+Generate the 8-partition input. The 24 mask levels and unit reference length
+are part of the frozen profile even though this run uses AMR levels 0 through
+2:
+
+```sh
+"$harness_root/artifacts/install/openmpi/bin/mpiexec" -n 1 \
+  "$harness_root/artifacts/build/solver/2d-sa/tests/mesh_preprocessor_2d" \
+  inputs/naca0012_sharp.grd \
+  --dim 2 \
+  --nparts 8 \
+  --levels 24 \
+  --reference-length 1.0 \
+  --skip-tecplot \
+  >logs/preprocess.stdout.log 2>logs/preprocess.stderr.log
+printf '%s\n' "$?" >logs/preprocess.exitcode
+```
+
+Run on eight allocated physical cores:
+
+```sh
+/usr/bin/time -v -o logs/resource.log \
+  "$harness_root/artifacts/install/openmpi/bin/mpiexec" \
+  --bind-to core -n 8 \
+  "$harness_root/artifacts/build/solver/2d-sa/BackgroundSolver" \
+  inputs/inputs \
+  >logs/stdout.log 2>logs/stderr.log </dev/null
+printf '%s\n' "$?" >logs/run.exitcode
+```
+
+Validate its two output cadences after it reaches time 30:
+
+```sh
+python3 inputs/validate.py --run-dir . \
+  --expected-steps 7500 \
+  --expected-final-time 30 \
+  --expected-dt 0.004 \
+  --expected-force-samples 30000 \
+  --expected-force-dt 0.001 \
+  >logs/validate.stdout.log 2>logs/validate.stderr.log
+printf '%s\n' "$?" >logs/validate.exitcode
+cd "$harness_root"
+```
+
+These criteria establish execution and finite output only. The profile retains
+the workstation's conflicting Cartesian and scene free-stream values, so a
+passing run is not yet physical validation.
+
 ## Clean generated build state
 
 Remove one solver cache when changing configuration outside its named axes:

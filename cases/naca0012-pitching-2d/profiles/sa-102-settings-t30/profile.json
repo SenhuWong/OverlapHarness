@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "case_id": "naca0012-pitching-2d",
+  "profile_id": "sa-102-settings-t30",
+  "qualification": "candidate",
+  "build": {
+    "AMReX_SPACEDIM": 2,
+    "TURB_MODEL": "SA",
+    "CMAKE_BUILD_TYPE": "Release"
+  },
+  "execution": {
+    "mpi_ranks": 8,
+    "expected_level0_steps": 7500,
+    "expected_final_time": 30.0,
+    "expected_level0_dt": 0.004,
+    "expected_force_samples": 30000,
+    "expected_force_dt": 0.001
+  },
+  "preprocess": {
+    "target": "mesh_preprocessor_2d",
+    "arguments": [
+      "inputs/naca0012_sharp.grd",
+      "--dim",
+      "2",
+      "--nparts",
+      "8",
+      "--levels",
+      "24",
+      "--reference-length",
+      "1.0",
+      "--skip-tecplot"
+    ],
+    "generated_output": "InterMesh/_cell_8_naca0012_sharp.grd.h5",
+    "commit_generated_output": false
+  },
+  "source_reference": {
+    "solver_commit": "228738ef75fd75d14e03ef73781962280329f299",
+    "mpi_ranks": 32,
+    "target_time": 200.0,
+    "wzm_inputs_sha256": "abf33396a6daecd8b64847ac904b049f33929103a4e76aff81ddeff8906f2587",
+    "Ranswzm_sne_sha256": "86e18243b7ca28bbad986dc7f9c5a624b31ea4f0e6fab3feb4a5551c21bbde41"
+  },
+  "files": [
+    {
+      "path": "profiles/sa-102-settings-t30/inputs",
+      "sha256": "010ee92749d991a8bf38cf37d50992eb207025dca11d1bea93e1a2227e809ea5"
+    },
+    {
+      "path": "profiles/sa-102-settings-t30/Ranswzm.sne",
+      "sha256": "bec5054c9262e8fb02aa50d465b490f938d6b7367067a38a8005f4c918bc4605"
+    },
+    {
+      "path": "profiles/sa-102-settings-t30/ws102-wzm_inputs",
+      "sha256": "abf33396a6daecd8b64847ac904b049f33929103a4e76aff81ddeff8906f2587"
+    },
+    {
+      "path": "profiles/sa-102-settings-t30/ws102-Ranswzm.sne",
+      "sha256": "86e18243b7ca28bbad986dc7f9c5a624b31ea4f0e6fab3feb4a5551c21bbde41"
+    },
+    {
+      "path": "naca0012_sharp.grd",
+      "sha256": "eba052cd0522890ceb243ca8a3646c7e103c07dd2fc5bcd93e0fe52cc6aca0eb"
+    }
+  ]
+}

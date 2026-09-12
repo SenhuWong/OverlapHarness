@@ -1,0 +1,105 @@
+
+max_step = 100000
+stop_time = 30.0
+domain_length = 20.0
+geometry.is_periodic = 0 0 0
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+geometry.prob_lo     =   -10.00098      -10.00098      -1.0
+
+geometry.prob_hi = 9.99902  9.99902  0.0
+
+amr.n_cell           =   20      20      1
+#amr.n_cell           =   1024      512      16
+
+# >>>>>>>>>>>>>  BC FLAGS <<<<<<<<<<<<<<<<
+# 0 = Interior           3 = Symmetry
+# 1 = Inflow             4 = SlipWall
+# 2 = Outflow            5 = NoSlipWall
+# >>>>>>>>>>>>>  BC FLAGS <<<<<<<<<<<<<<<<
+cns.lo_bc       =  2   2   -1
+cns.hi_bc       =  2   2   -1
+
+cns.cfl = 0.1  # cfl number for hyperbolic system
+
+cns.v = 1
+amr.v = 1
+
+# LOAD BALANCE
+amr.loadbalance_with_workestimates = 1
+amr.loadbalance_level0_int = 1000
+
+# REFINEMENT / REGRIDDING 
+amr.check_input     = 0       # 
+amr.max_level = 2
+amr.ref_ratio       = 2 2 2 2 # refinement ratio
+amr.regrid_int      = 2 2 2 2 # how often to regrid
+amr.blocking_factor = 16
+amr.max_grid_size   = 640
+amr.n_error_buf     = 2 2 2 2 # number of buffer cells in error est
+amr.grid_eff        = 0.9     # what constitutes an efficient grid
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = 0
+amr.check_file              = chk    # root name of checkpoint file
+amr.check_int               = 100    # number of timesteps between checkpoints
+
+# amr.subcycling_mode = None
+
+# PLOTFILES
+amr.plot_files_output = 0
+amr.plot_file         = plt     # root name of plotfile
+amr.plot_int          = 50      # number of timesteps between plotfiles
+amr.derive_plot_vars  = pressure x_velocity y_velocity z_velocity
+
+# EB
+eb2.geom_type = plane
+eb2.plane_point = 5.2 0.0 0.0
+eb2.plane_normal = 0.7547095802227719  -0.6560590289905074  0.0   # slope: 49 degree
+
+physics.gamma  = 1.4
+physics.eos_mu = 41.57255
+
+physics.use_const_visc = 1
+cns.dim = 2
+cns.use_total_energy_as_eb_weights = 1
+physics.visc_ma = 0.6
+physics.visc_re = 4800000
+physics.visc_temperature = 288.0
+
+input_file = Ranswzm.sne
+
+unstruct.amr_inner_solver = 2
+unstruct.communicate_before_residual = 1
+unstruct.sundials_gmres_pseudo_steps = 64
+unstruct.sundials_gmres_startup_pseudo_steps = 64
+unstruct.sundials_gmres_startup_time = 0.01
+unstruct.sundials_gmres_verbose = 0
+unstruct.sundials_gmres_fixed_point_mode = 0
+unstruct.sundials_gmres_use_fixed_point_residual = 0
+unstruct.sundials_gmres_use_lusgs_initial_guess = 1
+unstruct.sundials_gmres_prec_side = 2
+unstruct.sundials_krylov_dim = 80
+unstruct.sundials_gmres_linear_tol = 1e-6
+unstruct.sundials_gmres_jv_rel_eps = 1e-7
+unstruct.sundials_gmres_use_stored_jacobian = 1
+unstruct.sundials_gmres_stored_jacobian_fd_block = 0
+unstruct.sundials_gmres_stored_jacobian_offdiag_scale = 1.0
+unstruct.sundials_gmres_stored_jacobian_physical_atimes = 1
+unstruct.sundials_gmres_stored_jacobian_atimes_pseudo_scale = 0.25
+unstruct.sundials_gmres_stored_jacobian_lusgs_sweeps = 1
+unstruct.sundials_gmres_max_relative_update = 0.25
+unstruct.sundials_gmres_max_lusgs_correction_growth = 4.0
+unstruct.sundials_gmres_force_guard = 1
+unstruct.sundials_gmres_force_guard_relative_tol = 0.01
+unstruct.sundials_gmres_max_line_search = 20
+unstruct.sundials_gmres_lusgs_skip_ratio = 1.0e99
+unstruct.sundials_gmres_stats_interval = 64
+unstruct.sundials_gmres_use_lusgs_convergence = 0
+unstruct.sundials_gmres_min_pseudo_steps = 64
+unstruct.lusgs_residual_diag_interval = 64
+unstruct.lusgs_residual_diag_start_step = 0
+unstruct.sundials_gmres_jacobian_check = 0
+cns.coupling_iterations = 4
+cns.coupling_directional_update = 1
+cns.coupling_verbose = 0
+unstruct.sundials_gmres_stored_jacobian_estimated_block = 1

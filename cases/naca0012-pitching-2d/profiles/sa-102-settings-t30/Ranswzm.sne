@@ -1,0 +1,35 @@
+Scene: Scene
+ndim: 2
+SteadyStep: 8001
+DualStep: 36000
+SplitStep: 2000
+PesudoStep: 200
+Entities:
+  - Entity: 0
+    TagComponent:
+      Tag: ctnew1
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    CFDMeshComponent2:
+      mesh_name: inputs/naca0012_sharp.grd
+      signWall: -1
+      signOver: -2
+      signSymm: -3
+    CFDFlowComponent:
+      flow: 2
+      fs_ma: 0.4
+      fs_Re: 3400000
+      fs_AOA: 6.25
+      advance: 0
+      turb: 1
+    VelocityComponent:
+      IsSinu: true
+      translationOrRotation: false
+      centroid: [0.25, 0, 0]
+      translationSpeed: [0, 0, 0]
+      rotationSpeed: [0, 0, 0]
+      k: 0.075
+      mach: 0.4
+      Amplitude: 8.5

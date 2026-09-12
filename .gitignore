@@ -29,4 +29,5 @@
 /artifacts/**/*.h5
 /artifacts/**/*.hdf5
 /artifacts/**/*.bp
+/artifacts/*
 

@@ -1,3 +1,4 @@
 [submodule "solver"]
 	path = solver
 	url = git@github.com:SenhuWong/Amrex_Overlap.git
+	branch = feature/unstruct-sundials-gmres-lusgs

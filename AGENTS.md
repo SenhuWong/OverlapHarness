@@ -37,8 +37,27 @@ present unvalidated results as established conclusions.
   task matching alone is not authorization. Project-local `.agents/skills/`
   remain available when applicable.
 - Never commit passwords, tokens, private keys, or machine-specific secrets.
-- Runs, checkpoints, generated files, verification attempts, and disposable
-  scratch files belong only in `artifacts/`.
+- `artifacts/` is reserved for numerical-experiment evidence. Each
+  `artifacts/<topic>/` has one stated validation objective and may contain
+  multiple immutable-after-finalization experiment attempts made to answer
+  that objective. This includes method-development runs and user-requested
+  case calculations, whether they pass, fail, or remain incomplete.
+- Do not place build trees, dependency installations, downloaded toolchains,
+  generic scratch clones, or editor caches in `artifacts/`, and never resolve a
+  compiler, MPI implementation, launcher, or library from there. Put
+  disposable generated state under the ignored top-level `build/` tree or an
+  external temporary directory.
+- The current superbuild's `artifacts/build/` and `artifacts/install/` defaults
+  are a documented legacy conflict, not precedent for new work and not a
+  portable dependency source. Do not reuse them on another machine. Report the
+  conflict if a requested command would exercise it; changing the build layout
+  requires a separately scoped implementation change.
+- Before configuring, building, or running on a new machine, inspect available
+  machine-provided dependencies read-only and ask the user to confirm the
+  compiler toolchain, MPI implementation/prefix/launcher, and any other
+  external library path. Do not select a preferred implementation or silently
+  reuse a path from another machine. METIS is solver-owned under
+  `solver/Depend/` and does not require this confirmation.
 - A project-local skill must keep every required CLI and deterministic helper
   below its own `.agents/skills/<skill>/` directory. Local skills must be
   self-contained.

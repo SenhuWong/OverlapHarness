@@ -33,10 +33,10 @@ OverlapHarness/
 |       `-- ...               authoritative editable inputs
 |-- artifacts/
 |   |-- README.md
-|   |-- _template/            tracked run-record templates
-|   |-- build/                generated dependency and solver build trees
-|   |-- install/              generated dependency installations
-|   `-- <case>/<run-id>/      one append-only execution record
+|   |-- _template/            tracked experiment-record templates
+|   |-- build/                legacy generated build state
+|   |-- install/              legacy generated dependency installations
+|   `-- <topic>/<experiment-id>/ one append-only numerical experiment
 `-- tools/                    future debugging and visualization utilities
 ```
 
@@ -49,10 +49,14 @@ experiments. The solver repository owns six nested vendor gitlinks under
 submodule initialization must reproduce all seven source identities, including
 the solver gitlink, without generated files.
 
-Builds and installs never write into either Git worktree. They belong under the
-harness-level `artifacts/` tree. A solver change is committed in `solver/`
-before the parent gitlink is advanced, so a parent commit never depends on an
-uncommitted submodule state.
+Builds and installs never write into either Git worktree. The present
+superbuild still places disposable state in `artifacts/build/` and
+`artifacts/install/`; this is a legacy conflict with the numerical-artifact
+contract below, not a portable dependency location. It must not be reused
+after cloning on another machine. Moving it requires a separately scoped build
+layout change. A solver change is committed in `solver/` before the parent
+gitlink is advanced, so a parent commit never depends on an uncommitted
+submodule state.
 
 ## Verified Solver Map
 
@@ -93,8 +97,8 @@ independent solver configurations:
 ```text
 artifacts/
 |-- build/
-|   |-- superbuild/           CMake orchestration cache and stamps
-|   |-- dependencies/hdf5/    parallel HDF5 build tree
+|   |-- superbuild/            CMake orchestration cache and stamps
+|   |-- dependencies/hdf5/     parallel HDF5 build tree
 |   |-- dependencies/sundials/ SUNDIALS build tree
 |   `-- solver/
 |       |-- 2d-euler/
@@ -103,9 +107,13 @@ artifacts/
 |       |-- 3d-euler/
 |       |-- 3d-sst/
 |       `-- 3d-sa/
-|-- install/hdf5/             shared parallel HDF5 installation
-`-- install/sundials/         shared SUNDIALS installation
+|-- install/hdf5/              shared parallel HDF5 installation
+`-- install/sundials/          shared SUNDIALS installation
 ```
+
+This diagram describes the current implementation, not the intended artifact
+boundary. These legacy build/install directories are disposable and excluded
+from the numerical experiment namespace.
 
 `AMReX_SPACEDIM` changes AMReX configuration and compiled behavior.
 `TURB_MODEL` changes compile definitions, model-specific Fortran sources, and
@@ -113,8 +121,10 @@ the generated `turb_indices.f90`. Each combination therefore owns a separate
 CMake cache and generated-module directory. HDF5 and SUNDIALS may be shared
 only while the compiler, MPI implementation, dependency options, and build
 type remain identical. `OVERLAP_MPI_ROOT` binds the MPI C, C++, and Fortran
-wrappers and launcher across both dependencies and all solver variants; when
-it is empty, the superbuild selects wrappers from `PATH`.
+wrappers and launcher across both dependencies and all solver variants. Before
+configuration on a machine, the user must confirm whether the build uses a
+specific MPI prefix or the wrappers currently resolved from `PATH`; the
+superbuild does not prescribe an MPI implementation.
 
 | Variant | Dimension | Model | Selected executables |
 | --- | ---: | --- | --- |
@@ -144,8 +154,9 @@ preprocessed mesh fixture and a cell-centered LSQ MeshLoader test consuming
 that fixture. Current builds still report warnings including an AMReX
 boundary-condition copy over-read diagnostic, HDF5 size-type narrowing,
 `#pragma once` in implementation files, and `MPICH_SKIP_MPICXX` redefinition.
-A prebuilt x86-64 METIS shared library is tracked under `solver/Depend/`, so
-portable builds must replace or explicitly qualify it.
+METIS is bundled under `solver/Depend/` and is treated as solver-owned rather
+than a machine-provided harness dependency. The harness neither selects nor
+installs a separate METIS implementation.
 
 The first harness numerical case is `cases/naca0012-pitching-2d`. Its initial
 16-rank local run completed 100 coupled 2D SST physical steps and passed the
@@ -187,7 +198,7 @@ A parent commit must never imply that a dirty submodule result is reproducible.
 
 ```text
 cases/<case>/
-  -- freeze + hash --> artifacts/<case>/<run-id>/inputs/
+  -- freeze + hash --> artifacts/<topic>/<experiment-id>/inputs/
   -- build/run -----> logs + small metrics + large external payloads
   -- validate ------> criterion results + final verdict
   -- record --------> manifest binding both Git revisions and all evidence
@@ -196,14 +207,21 @@ cases/<case>/
 Runs must not execute directly from the live case directory. Failed runs are
 evidence and are retained; an input or source change creates a new run.
 
-## Artifact Contract
+## Numerical Experiment Artifact Contract
 
-Use a UTC-based unique ID such as `run-20260901T153012Z-a1b2c3d4`. A run begins
-mutable, but its `inputs/` is frozen before execution. After a terminal verdict,
-the directory is append-only.
+An artifact topic represents exactly one validation objective: a physical or
+numerical question that may require several comparable attempts. A different
+objective creates a different topic; a changed source revision, input,
+configuration, or resource choice within the same objective creates a new
+experiment. Failed and incomplete attempts remain part of the evidence.
+
+Use a UTC-based unique experiment ID such as
+`run-20260901T153012Z-a1b2c3d4`. An experiment begins mutable, but its `inputs/`
+is frozen before execution. After a terminal verdict, the directory is
+append-only.
 
 ```text
-artifacts/<case>/<run-id>/
+artifacts/<topic>/<experiment-id>/
 |-- ATTEMPT.md       purpose, decisions, limitations, and concise handoff
 |-- manifest.json    machine-readable identity and provenance
 |-- inputs/          immutable snapshot with per-file SHA-256
@@ -215,7 +233,7 @@ artifacts/<case>/<run-id>/
 
 The manifest schema starts at version `1` and records:
 
-- run ID, case ID, purpose, parent run, and UTC start/end;
+- experiment ID, topic/case ID, purpose, parent experiment, and UTC start/end;
 - harness SHA/dirty evidence and solver SHA/dirty evidence/nested revisions;
 - input paths, sizes, and SHA-256 values;
 - compiler, MPI, dependencies, configuration, build command, and executable

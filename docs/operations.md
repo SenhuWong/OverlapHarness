@@ -1,7 +1,8 @@
 # Operations
 
 Run the commands below from the `OverlapHarness` repository root. They are the
-supported local build and validation interface for the current CPU/MPI setup.
+supported local build and validation interface after the machine-specific
+dependency choices have been confirmed with the user.
 
 ## Initialize source dependencies
 
@@ -9,10 +10,27 @@ supported local build and validation interface for the current CPU/MPI setup.
 git submodule update --init --recursive
 ```
 
-This initializes `solver/` and its six vendor submodules: AMReX, EnTT, GLM,
-HDF5, SUNDIALS, and yaml-cpp. Do not build inside a vendor source directory.
+This initializes `solver/` and its six vendor source submodules: AMReX, EnTT,
+GLM, HDF5, SUNDIALS, and yaml-cpp. METIS is also solver-owned under
+`solver/Depend/`; the harness does not select a separate METIS installation.
+Do not build inside a vendor source directory.
 
-## Check the local toolchain
+## Confirm machine-provided dependencies
+
+Before any configure, build, or run on a new machine, inspect the available
+choices read-only and ask the user to confirm:
+
+- the C, C++, and Fortran compiler toolchain;
+- the MPI implementation, compiler wrappers, installation prefix if any, and
+  launcher;
+- any machine-provided library path not supplied by the recursive checkout;
+- for a numerical run, the rank count and launcher/binding options.
+
+Do not choose Open MPI, MPICH, a module, or a local installation merely because
+it appears first on `PATH`. Never use a compiler, MPI launcher, or library below
+`artifacts/`: that directory contains numerical evidence, not dependencies.
+The following commands only inventory candidates; they do not authorize a
+choice:
 
 ```sh
 cmake --version
@@ -25,59 +43,35 @@ mpifort --version
 mpiexec --version
 ```
 
-The C, C++, and Fortran wrappers, MPI implementation, and build type form one
-build identity. Do not reuse an artifact build tree after changing any of them.
-
-The system MPICH installation on the current WSL host hangs in `MPI_Init`.
-Open MPI 4.1.6 was therefore built locally under `artifacts/` with Fortran
-bindings, using the official release archive whose SHA-256 is
-`44da277b8cdc234e71c62473305a09d63f4dcca292ca40335aab7c4bf0e6a566`:
-
-```sh
-cmake -E make_directory artifacts/downloads artifacts/src \
-  artifacts/build/dependencies/openmpi
-curl --fail --location \
-  --output artifacts/downloads/openmpi-4.1.6.tar.gz \
-  https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.6.tar.gz
-printf '%s  %s\n' \
-  44da277b8cdc234e71c62473305a09d63f4dcca292ca40335aab7c4bf0e6a566 \
-  artifacts/downloads/openmpi-4.1.6.tar.gz | sha256sum --check
-tar -xzf artifacts/downloads/openmpi-4.1.6.tar.gz -C artifacts/src
-cd artifacts/build/dependencies/openmpi
-../../../src/openmpi-4.1.6/configure \
-  --prefix="$OLDPWD/artifacts/install/openmpi" \
-  --enable-mpi-fortran=usempi \
-  --disable-oshmem \
-  --without-verbs \
-  --without-ucx
-make --jobs 8
-make install
-cd "$OLDPWD"
-```
-
-An existing MPI installation is suitable only after a minimal program that
-calls `MPI_Init` and `MPI_Finalize` succeeds both directly and under the chosen
-launcher. Keep that probe and its output under `artifacts/`.
+The confirmed C, C++, and Fortran wrappers, MPI implementation, and build type
+form one build identity. Do not reuse a build tree after changing any of them.
+If the user chooses an MPI candidate, qualify it with a minimal program that
+calls `MPI_Init` and `MPI_Finalize` both directly and under the confirmed
+launcher. A probe performed for a numerical topic belongs in that topic's
+experiment record; a general machine-qualification probe belongs under
+`build/diagnostics/` and is disposable.
 
 ## Configure the superbuild
 
-Use the harness-local Open MPI installation on the current host:
+After the user confirms an MPI installation prefix, pass its absolute path:
 
 ```sh
 cmake --preset superbuild \
-  -DOVERLAP_MPI_ROOT="$PWD/artifacts/install/openmpi"
+  -DOVERLAP_MPI_ROOT="/confirmed/absolute/mpi-prefix"
 ```
 
-On a machine with a working MPI implementation already on `PATH`, omit
-`OVERLAP_MPI_ROOT`:
+If the user instead confirms the wrappers and launcher currently resolved from
+`PATH`, omit `OVERLAP_MPI_ROOT`:
 
 ```sh
 cmake --preset superbuild
 ```
 
 The setting selects one coherent set of MPI compiler wrappers and launcher for
-HDF5, SUNDIALS, and every solver variant. Configuration creates only the
-orchestration cache at `artifacts/build/superbuild`.
+HDF5, SUNDIALS, and every solver variant. Configuration currently creates the
+orchestration cache at the legacy path `artifacts/build/superbuild`. This is
+disposable local build state, not a numerical experiment and not a dependency
+source to reuse after cloning on another machine.
 
 ## Build shared dependencies
 
@@ -86,10 +80,10 @@ cmake --build --preset hdf5-parallel --parallel 8
 cmake --build --preset sundials-parallel --parallel 8
 ```
 
-HDF5 is built with `HDF5_ENABLE_PARALLEL=ON` and installed at
-`artifacts/install/hdf5`. SUNDIALS builds its MPI-enabled ARKODE libraries and
-is installed at `artifacts/install/sundials`. Their build trees are
-`artifacts/build/dependencies/hdf5` and
+HDF5 is built with `HDF5_ENABLE_PARALLEL=ON` and currently installed at the
+legacy path `artifacts/install/hdf5`. SUNDIALS builds its MPI-enabled ARKODE
+libraries and is installed at `artifacts/install/sundials`. Their build trees
+are `artifacts/build/dependencies/hdf5` and
 `artifacts/build/dependencies/sundials`. Tests, examples, unused SUNDIALS
 solver packages, HDF5 language bindings, and HDF5 tools are disabled.
 
@@ -109,8 +103,8 @@ cmake --build --preset solver-3d-sst --parallel 8
 cmake --build --preset solver-3d-sa --parallel 8
 ```
 
-Each target incrementally configures and builds its own directory under
-`artifacts/build/solver/`. The six directories isolate the two
+Each target incrementally configures and builds its own directory under the
+legacy `artifacts/build/solver/` path. The six directories isolate the two
 `AMReX_SPACEDIM` values and three `TURB_MODEL` values, including their generated
 Fortran modules and CMake caches.
 
@@ -141,6 +135,7 @@ Create a unique record and freeze the case inputs before execution:
 
 ```sh
 harness_root=$PWD
+mpi_exec="/confirmed/absolute/path/to/mpiexec"
 run_id="run-$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short=8 HEAD)"
 run_dir="$harness_root/artifacts/naca0012-pitching-2d/$run_id"
 mkdir -p "$run_dir/inputs" "$run_dir/logs"
@@ -151,7 +146,7 @@ Generate the 16-partition HDF5 mesh from the run directory:
 
 ```sh
 cd "$run_dir"
-"$harness_root/artifacts/install/openmpi/bin/mpiexec" -n 1 \
+"$mpi_exec" -n 1 \
   "$harness_root/artifacts/build/solver/2d-sst/tests/mesh_preprocessor_2d" \
   inputs/naca0012_sharp.grd \
   --dim 2 \
@@ -163,12 +158,11 @@ cd "$run_dir"
 printf '%s\n' "$?" >logs/preprocess.exitcode
 ```
 
-Run exactly 100 physical steps with the 2D SST executable. Use hardware-thread
-slots when the local MPI allocation exposes fewer than 16 physical-core slots:
+Run exactly 100 physical steps with the 2D SST executable. Add launcher- and
+binding-specific options only after the user confirms them for this machine:
 
 ```sh
-"$harness_root/artifacts/install/openmpi/bin/mpiexec" \
-  --use-hwthread-cpus --bind-to hwthread -n 16 \
+"$mpi_exec" -n 16 \
   "$harness_root/artifacts/build/solver/2d-sst/BackgroundSolver" \
   inputs/inputs \
   >logs/stdout.log 2>logs/stderr.log </dev/null
@@ -206,6 +200,7 @@ profile before preprocessing:
 
 ```sh
 harness_root=$PWD
+mpi_exec="/confirmed/absolute/path/to/mpiexec"
 run_id="run-$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short=8 HEAD)-sa10-t30"
 run_dir="$harness_root/artifacts/naca0012-pitching-2d/$run_id"
 mkdir -p "$run_dir/inputs" "$run_dir/logs"
@@ -221,7 +216,7 @@ Generate all three overset-mask resolutions required by AMR levels 0 through
 2. The partition count must match the MPI rank count:
 
 ```sh
-"$harness_root/artifacts/install/openmpi/bin/mpiexec" -n 1 \
+"$mpi_exec" -n 1 \
   "$harness_root/artifacts/build/solver/2d-sa/tests/mesh_preprocessor_2d" \
   inputs/naca0012_sharp.grd \
   --dim 2 \
@@ -234,13 +229,13 @@ printf '%s\n' "$?" >logs/preprocess.exitcode
 ```
 
 The WSL allocation used on 2026-09-11 exposed seven physical cores and thirteen
-hardware threads. The diagnostic attempt therefore ran ten MPI ranks bound to
-hardware threads:
+hardware threads. That historical attempt ran ten ranks bound to hardware
+threads, but a new run must use launcher/binding options confirmed for its MPI
+implementation and machine:
 
 ```sh
 /usr/bin/time -v -o logs/resource.log \
-  "$harness_root/artifacts/install/openmpi/bin/mpiexec" \
-  --use-hwthread-cpus --bind-to hwthread -n 10 \
+  "$mpi_exec" -n 10 \
   "$harness_root/artifacts/build/solver/2d-sa/BackgroundSolver" \
   inputs/inputs \
   >logs/stdout.log 2>logs/stderr.log </dev/null
@@ -281,6 +276,7 @@ cmake --build --preset solver-2d-sa --parallel 8
 ctest --test-dir artifacts/build/solver/2d-sa --output-on-failure
 
 harness_root=$PWD
+mpi_exec="/confirmed/absolute/path/to/mpiexec"
 profile=cases/naca0012-pitching-2d/profiles/sa-102-settings-t30
 run_id="run-$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short=8 HEAD)-sa8-102-t30"
 run_dir="$harness_root/artifacts/naca0012-pitching-2d/$run_id"
@@ -302,7 +298,7 @@ are part of the frozen profile even though this run uses AMR levels 0 through
 2:
 
 ```sh
-"$harness_root/artifacts/install/openmpi/bin/mpiexec" -n 1 \
+"$mpi_exec" -n 1 \
   "$harness_root/artifacts/build/solver/2d-sa/tests/mesh_preprocessor_2d" \
   inputs/naca0012_sharp.grd \
   --dim 2 \
@@ -314,12 +310,12 @@ are part of the frozen profile even though this run uses AMR levels 0 through
 printf '%s\n' "$?" >logs/preprocess.exitcode
 ```
 
-Run on eight allocated physical cores:
+Run on eight allocated ranks. Add binding options only after they are confirmed
+for the selected launcher and allocation:
 
 ```sh
 /usr/bin/time -v -o logs/resource.log \
-  "$harness_root/artifacts/install/openmpi/bin/mpiexec" \
-  --bind-to core -n 8 \
+  "$mpi_exec" -n 8 \
   "$harness_root/artifacts/build/solver/2d-sa/BackgroundSolver" \
   inputs/inputs \
   >logs/stdout.log 2>logs/stderr.log </dev/null
@@ -353,7 +349,7 @@ cmake -E remove_directory artifacts/build/solver/2d-sst
 cmake -E remove_directory \
   artifacts/build/superbuild/external/solver-2d-sst
 cmake --preset superbuild \
-  -DOVERLAP_MPI_ROOT="$PWD/artifacts/install/openmpi"
+  -DOVERLAP_MPI_ROOT="/confirmed/absolute/mpi-prefix"
 ```
 
 The second directory contains the ExternalProject stamps. Removing only the
@@ -371,8 +367,8 @@ cmake -E remove_directory artifacts/install/hdf5
 cmake -E remove_directory artifacts/install/sundials
 ```
 
-These commands retain the independently installed MPI toolchain and case run
-records elsewhere under `artifacts/`.
+These commands do not touch the externally selected MPI toolchain or numerical
+experiment records elsewhere under `artifacts/`.
 
 ## Direct solver configuration
 
@@ -380,12 +376,13 @@ The superbuild is the supported path. For focused CMake debugging, an
 equivalent direct 2D SST configuration is:
 
 ```sh
+mpi_prefix="/confirmed/absolute/mpi-prefix"
 cmake -S solver -B artifacts/build/solver/2d-sst \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER="$PWD/artifacts/install/openmpi/bin/mpicc" \
-  -DCMAKE_CXX_COMPILER="$PWD/artifacts/install/openmpi/bin/mpicxx" \
-  -DCMAKE_Fortran_COMPILER="$PWD/artifacts/install/openmpi/bin/mpifort" \
-  -DMPIEXEC_EXECUTABLE="$PWD/artifacts/install/openmpi/bin/mpiexec" \
+  -DCMAKE_C_COMPILER="$mpi_prefix/bin/mpicc" \
+  -DCMAKE_CXX_COMPILER="$mpi_prefix/bin/mpicxx" \
+  -DCMAKE_Fortran_COMPILER="$mpi_prefix/bin/mpifort" \
+  -DMPIEXEC_EXECUTABLE="$mpi_prefix/bin/mpiexec" \
   -DAMReX_SPACEDIM=2 \
   -DTURB_MODEL=SST \
   -DHDF5_DIR="$PWD/artifacts/install/hdf5/cmake" \

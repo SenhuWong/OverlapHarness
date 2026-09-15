@@ -78,8 +78,9 @@ mutable agent work, while `docs/` is long-lived project guidance.
 - Keep the current NACA0012 pitching case and both SA profiles. Do not add
   draft/active/qualified lifecycle labels merely because the case is unfinished.
 - NACA0012 pitching is a long-running moving-body case that may take three days
-  or more and requires human review. Do not add `run.sh` until the target Slurm
-  configuration is available and the user can run it manually once.
+  or more and requires human review. Its workstation-102 target profile may use
+  the standard `sbatch run.sh` entry point only after its Slurm configuration is
+  explicit; preprocessing and a one-step scheduled preflight gate the full run.
 
 An automated `PASS` means only that the checks listed by the case met their
 tolerances. It is not final acceptance or proof of physical validity. Do not

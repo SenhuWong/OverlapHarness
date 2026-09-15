@@ -131,3 +131,9 @@ conservative workstation-102 SA controls used for the current 8-rank local
 comparison. It retains the original workstation files, the current-solver
 compatibility inputs, their hashes, and the exact deterministic preprocessing
 arguments. Its partition-dependent HDF5 file remains generated run evidence.
+
+The `profiles/sst-ws102-t120/` profile is the 32-rank workstation-102 target
+configuration. It uses SST, the consistent Mach 0.4/Re 3.4e6 flow definition,
+`max_level=4`, paired checkpoints, and a standard `sbatch run.sh` launch. Its
+README requires preprocessing and a one-step Slurm preflight before the full
+physical-time-120 run.

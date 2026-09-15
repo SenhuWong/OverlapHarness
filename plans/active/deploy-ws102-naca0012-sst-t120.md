@@ -32,3 +32,23 @@ after preprocessing and a one-step Slurm preflight succeed.
   unresolved donor, model, output, or restart problem.
 - Treat automated status as operational evidence only; final physical
   acceptance remains a human decision.
+
+## Progress
+
+- Published harness commits `7c0aab7`, `a49b1f0`, and `d009df6`; workstation
+  102 is clean at the last revision, with its earlier deployment preserved in
+  `stash@{0}`.
+- Built `solver-2d-sst` with system Open MPI and passed both solver CTest cases.
+- Preprocessed levels 0--4 for 32 partitions. Every level has valid donors and
+  mesh receptors; the generated partition file is 4.1 MiB.
+- Slurm preflight job `593` completed one coarse step to time 0.016 on 32 ranks,
+  produced finite force samples, and wrote matching step-1 AMR and unstructured
+  checkpoints. Its only stderr output was a repeated non-fatal display
+  authorization warning.
+- Prepared the full runtime at
+  `artifacts/runtime/naca0012-pitching-2d/sst-ws102-t120-20260915T150008Z` and
+  verified its Slurm request with `sbatch --test-only`.
+- Installed Postfix and GNU Mailutils. Gmail rejected the direct-delivery test
+  with SMTP status `550 5.7.26` because the workstation sender has neither SPF
+  nor DKIM. The full run remains unsubmitted until a working authenticated SMTP
+  relay is configured and tested.

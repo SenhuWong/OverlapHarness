@@ -1,252 +1,76 @@
 # Architecture
 
-OverlapHarness is an engineering harness for developing and qualifying a
-compressible Navier--Stokes solver for flows around moving bodies. The solver
-combines AMReX Cartesian grids, a near-wall unstructured solver, and TIOGA
-overset connectivity. The harness owns reproducible builds, cases, run records,
-and validation evidence; numerical implementation remains in the solver
-repository.
+OverlapHarness is an engineering and research harness for a compressible
+Navier--Stokes solver around moving bodies. The numerical solver combines AMReX
+Cartesian grids, an unstructured near-body solver, and TIOGA overset
+connectivity.
 
-## Repository Layout
+## Ownership Boundaries
 
-```text
-OverlapHarness/
-|-- AGENTS.md                 agent entry point and repository rules
-|-- ARCHITECTURE.md           stable boundaries and provenance contract
-|-- CMakeLists.txt            dependency and six-variant superbuild
-|-- CMakePresets.json         supported configure/build entry points
-|-- .gitignore                generated and large-payload exclusions
-|-- .agents/skills/           project-local agent workflows and helpers
-|-- docs/                     design, operations, and execution plans
-|-- solver/                   Amrex_Overlap Git submodule
-|   |-- CMakeLists.txt        solver configuration and executable selection
-|   |-- source/               AMReX levels and coupled orchestration
-|   |-- UnstructSolver/       unstructured discretization/time integration
-|   |-- UniTioga/             overset connectivity and exchange
-|   |-- MathTools/            mesh/search geometry utilities
-|   |-- Exec/                 executable-specific sources and AMReX inputs
-|   |-- bg_inputs/            coupled scene, grid, and background inputs
-|   `-- vendor/               six nested source submodules
-|-- cases/
-|   `-- <case>/
-|       |-- README.md         purpose, parameters, and acceptance criteria
-|       `-- ...               authoritative editable inputs
-|-- artifacts/
-|   |-- README.md
-|   |-- _template/            tracked run-record templates
-|   |-- build/                generated dependency and solver build trees
-|   |-- install/              generated dependency installations
-|   `-- <case>/<run-id>/      one append-only execution record
-`-- tools/                    future debugging and visualization utilities
-```
+The harness owns build orchestration, case definitions, runtime isolation,
+research records, and qualification policy. Numerical algorithms and solver
+executables remain in the `solver/` repository. Third-party source is selected
+by the nested gitlinks under `solver/vendor/`.
 
-## Source and Submodule Contract
+Harness and solver are separate Git repositories. The parent `solver/` gitlink
+identifies the solver revision used by the harness. A solver change is committed
+in the submodule before the parent gitlink advances. Generated state must not be
+written into either Git worktree.
 
-The harness repository does not copy solver or dependency history. Its
-`solver/` gitlink selects the solver revision used by cases, tools, and recorded
-experiments. The solver repository owns six nested vendor gitlinks under
-`solver/vendor/`: HDF5, AMReX, EnTT, GLM, yaml-cpp, and SUNDIALS. A recursive
-submodule initialization must reproduce all seven source identities, including
-the solver gitlink, without generated files.
-
-Builds and installs never write into either Git worktree. They belong under the
-harness-level `artifacts/` tree. A solver change is committed in `solver/`
-before the parent gitlink is advanced, so a parent commit never depends on an
-uncommitted submodule state.
-
-## Verified Solver Map
-
-| Path | Observed responsibility |
-| --- | --- |
-| `solver/CMakeLists.txt` | Configures AMReX, parallel HDF5, MPI-facing libraries, turbulence policy, and executable targets. |
-| `solver/source/main.cpp` | Contains the active AMReX entry point and coupled mesh loading, connectivity, exchange, and advance orchestration. |
-| `solver/source/AmrLevelRans/` | AMReX state, RK4 advance, model policies, blank-aware Cartesian RHS, AMR patch exposure, and coupling callbacks. |
-| `solver/source/MeshLoader.*` | Partitions and loads unstructured grids, builds solver mesh data, and registers TIOGA blocks. |
-| `solver/UnstructSolver/source/` | Owns unstructured meshes, MPI halo exchange, flux and turbulence strategies, and LUSGS/Dual-LUSGS advance. |
-| `solver/UniTioga/source/` | Registers mesh and Cartesian blocks and performs hole cutting, donor search, interpolation, blanking, and data exchange. |
-| `solver/MathTools/source/` | Provides ADT, bounding-box, geometry, and low-level numerical utilities. |
-| `solver/Exec/*` | Provides problem-specific Fortran/C++ sources and AMReX input files selected by CMake. |
-| `solver/bg_inputs/` | Holds coupled scene, grid, and background-input examples. Harness validation inputs live under `cases/`. |
-
-The implemented coupled data flow is:
+## Coupled Solver Flow
 
 ```text
-case + geometry
-  -> near-wall unstructured mesh
-  -> far-field AMReX Cartesian mesh
-  -> TIOGA overset connectivity and field exchange
-  -> compressible Navier--Stokes advance
-  -> solution, diagnostics, and validation metrics
+case and geometry
+  -> unstructured near-body mesh and flow solver
+  -> AMReX Cartesian background mesh and flow solver
+  -> TIOGA connectivity, blanking, interpolation, and exchange
+  -> coupled physical-time advance
+  -> solution fields and diagnostic metrics
 ```
 
-`MeshLoader` creates both unstructured solver data and TIOGA `MeshBlock` data.
-`AmrLevelRans` exposes AMReX `MultiFab` patch geometry, solution pointers, and
-blanking fields. TIOGA performs mesh-to-mesh and mesh-to-AMR connectivity plus
-two-way field exchange. The unstructured physical-time path uses Dual-LUSGS
-inner iterations; the Cartesian path uses RK4 and blank-aware RHS kernels.
+`MeshLoader` creates the unstructured solver data and registers TIOGA mesh
+blocks. `AmrLevelRans` exposes Cartesian patch geometry, state, and blanking
+data. TIOGA connects both mesh systems and performs two-way exchange. The
+unstructured and Cartesian solvers retain their own numerical-method
+boundaries.
 
 ## Build Boundary
 
-The root superbuild owns shared parallel HDF5 and SUNDIALS builds plus six
-independent solver configurations:
+The root superbuild owns shared HDF5 and SUNDIALS builds and six isolated solver
+configurations. Dimension and turbulence selection affect compiled sources,
+definitions, and generated Fortran indices, so each combination has its own
+CMake cache and generated-module directory.
 
-```text
-artifacts/
-|-- build/
-|   |-- superbuild/           CMake orchestration cache and stamps
-|   |-- dependencies/hdf5/    parallel HDF5 build tree
-|   |-- dependencies/sundials/ SUNDIALS build tree
-|   `-- solver/
-|       |-- 2d-euler/
-|       |-- 2d-sst/
-|       |-- 2d-sa/
-|       |-- 3d-euler/
-|       |-- 3d-sst/
-|       `-- 3d-sa/
-|-- install/hdf5/             shared parallel HDF5 installation
-`-- install/sundials/         shared SUNDIALS installation
-```
+Dependencies may share an artifact root only when compiler, MPI, dependency
+options, ABI, and build type are compatible. Build commands and cache cleanup
+live in `docs/operations.md`; the six combinations and isolation rationale live
+in `docs/build-layout.md`.
 
-`AMReX_SPACEDIM` changes AMReX configuration and compiled behavior.
-`TURB_MODEL` changes compile definitions, model-specific Fortran sources, and
-the generated `turb_indices.f90`. Each combination therefore owns a separate
-CMake cache and generated-module directory. HDF5 and SUNDIALS may be shared
-only while the compiler, MPI implementation, dependency options, and build
-type remain identical. `OVERLAP_MPI_ROOT` binds the MPI C, C++, and Fortran
-wrappers and launcher across both dependencies and all solver variants; when
-it is empty, the superbuild selects wrappers from `PATH`.
+## Cases and Evidence
 
-| Variant | Dimension | Model | Selected executables |
-| --- | ---: | --- | --- |
-| `2d-euler` | 2 | `EULER` | `BackgroundSolver`, `RichtmyerMeshkovInstability`, `Riemann2D`, `ShockBubble`, `Sphere` |
-| `2d-sst` | 2 | `SST` | `BackgroundSolver` |
-| `2d-sa` | 2 | `SA` | `BackgroundSolver` |
-| `3d-euler` | 3 | `EULER` | `BackgroundSolver`, `TaylorGreenVortex`, `Riemann3D` |
-| `3d-sst` | 3 | `SST` | `BackgroundSolver`, `TaylorGreenVortex`, `Riemann3D` |
-| `3d-sa` | 3 | `SA` | `BackgroundSolver`, `TaylorGreenVortex` |
+`cases/` contains version-controlled definitions of numerical work: essential
+inputs, parameters, run instructions, and any current checks or reference data.
+Each case owns its case-specific workflow. Generated run state must be written
+outside the case directory.
 
-On 2026-09-10 all six Release configurations and all 15 selected executables
-built successfully with GNU 13.3, a harness-local Open MPI 4.1.6, parallel
-HDF5 2.0.0, and SUNDIALS 6.4.1. All six `BackgroundSolver` binaries resolve
-`libmpi.so.40` from that Open MPI installation. This is build qualification;
-the 3D SA binaries remain compile-qualified only because their AMReX SA RHS
-kernels explicitly stop at runtime when the unsupported path is selected.
+`artifacts/runtime/` contains machine-local run directories, logs, generated
+inputs, checkpoints, fields, and other intermediate data. It is ignored by Git
+and may remain only on the machine that performed the work.
 
-The active `main()` calls `loader_test_samrai()` and enters the coupled path.
-It loads preprocessed unstructured partitions, registers TIOGA connectivity,
-constructs the AMReX hierarchy, and advances the coupled solvers. Required
-startup paths are non-interactive; diagnostic pauses remain only on exceptional
-failure paths. `CartWrapper` is fully commented and is not an active
-abstraction.
+`artifacts/records/` contains curated, Git-tracked research summaries. A record
+groups the experiments needed to answer one research question and normally
+contains one Markdown document plus selected figures. It is not a complete
+ledger of every run.
 
-The solver registers two CTest checks: generation of a one-partition
-preprocessed mesh fixture and a cell-centered LSQ MeshLoader test consuming
-that fixture. Current builds still report warnings including an AMReX
-boundary-condition copy over-read diagnostic, HDF5 size-type narrowing,
-`#pragma once` in implementation files, and `MPICH_SKIP_MPICXX` redefinition.
-A prebuilt x86-64 METIS shared library is tracked under `solver/Depend/`, so
-portable builds must replace or explicitly qualify it.
+An automated `PASS` means only that the checks defined for that case met their
+tolerances. It does not by itself establish physical validity or final human
+acceptance. Detailed physical acceptance policy remains case-specific and must
+not be invented before supporting results exist.
 
-The first harness numerical case is `cases/naca0012-pitching-2d`. Its initial
-16-rank local run completed 100 coupled 2D SST physical steps and passed the
-case-level execution and finite-force criteria. The run record remains
-artifact-qualified as `INCOMPLETE` because the harness source snapshot included
-a pre-existing `.gitignore` modification; this does not change its numerical
-criterion results.
+## Instruction Boundary
 
-The same case carries a rejected diagnostic `profiles/sa-t30` configuration.
-On 2026-09-11, the 2D SA solver completed 3000 steps on 10 MPI ranks through
-physical time 30 and produced finite force history and synchronized restart
-records. Subsequent review rejected the run as physical validation: it used
-`dt=0.01`, CFL 1.0, four fixed pseudo steps with no residual stopping threshold,
-and fixed-point mode 2, which applied Anderson acceleration to the partitioned
-Dual-LUSGS map instead of executing the global SPGMR solve. Stored-Jacobian
-reuse was disabled, and the mesh-motion speed estimator reported zero during
-pitching. The artifact therefore establishes execution and restart integrity
-only. Its separate `INCOMPLETE` artifact qualification records the captured
-pre-existing `.gitignore` modification; the solver snapshot was clean.
-
-Supported configure, build, cleanup, and run-record commands are defined in
-`docs/operations.md`; the rationale and extension rules for the matrix are in
-`docs/build-layout.md`.
-
-## Two-Repository Development Model
-
-Harness and solver revisions are independent identities:
-
-1. Reproduce or create a baseline and record both revisions.
-2. Develop solver changes on a branch inside `solver/`.
-3. Build and validate the solver change against a frozen case snapshot.
-4. Commit the solver change in its repository.
-5. Update the parent gitlink and any matching case or validation metadata.
-
-This order preserves a reviewable solver commit and a reviewable harness commit.
-A parent commit must never imply that a dirty submodule result is reproducible.
-
-## Execution Data Flow
-
-```text
-cases/<case>/
-  -- freeze + hash --> artifacts/<case>/<run-id>/inputs/
-  -- build/run -----> logs + small metrics + large external payloads
-  -- validate ------> criterion results + final verdict
-  -- record --------> manifest binding both Git revisions and all evidence
-```
-
-Runs must not execute directly from the live case directory. Failed runs are
-evidence and are retained; an input or source change creates a new run.
-
-## Artifact Contract
-
-Use a UTC-based unique ID such as `run-20260901T153012Z-a1b2c3d4`. A run begins
-mutable, but its `inputs/` is frozen before execution. After a terminal verdict,
-the directory is append-only.
-
-```text
-artifacts/<case>/<run-id>/
-|-- ATTEMPT.md       purpose, decisions, limitations, and concise handoff
-|-- manifest.json    machine-readable identity and provenance
-|-- inputs/          immutable snapshot with per-file SHA-256
-|-- logs/            stdout, stderr, build, and validator logs
-|-- metrics.json     compact physical and numerical measurements
-|-- verdict.json     criterion-level PASS/FAIL/INCOMPLETE result
-`-- external.json    index of untracked large payloads
-```
-
-The manifest schema starts at version `1` and records:
-
-- run ID, case ID, purpose, parent run, and UTC start/end;
-- harness SHA/dirty evidence and solver SHA/dirty evidence/nested revisions;
-- input paths, sizes, and SHA-256 values;
-- compiler, MPI, dependencies, configuration, build command, and executable
-  SHA-256;
-- host/resource summary, exact execution command, and exit status;
-- paths to metrics, verdict, logs, and externally stored payloads.
-
-Each nested-submodule record carries path, revision, dirty state, and hashed
-status evidence. Commands are stored as `argv`, working directory, and launcher,
-not as an ambiguous shell transcript.
-
-Execution state and validation outcome are separate. Execution moves through
-`CREATED`, `RUNNING`, then `COMPLETED` or `FAILED`. `verdict.json` uses
-`NOT_RUN`, `PASS`, `FAIL`, or `INCOMPLETE` and binds the frozen criterion
-definition by path and SHA-256. `PASS` requires completed execution, clean
-source snapshots, all required evidence, and every required criterion passing.
-
-Large payloads are not committed. `external.json` records each payload's
-logical role, file/directory kind, path or URI, byte size, and retention status.
-Files use SHA-256 directly. Directories use a sorted per-file inventory of
-relative path, size, and SHA-256 plus the inventory file's SHA-256. The artifact
-is incomplete if required external evidence cannot be located or verified.
-
-Harness cleanliness is sampled immediately before the run directory is
-created; files added while recording that artifact do not retroactively dirty
-the source snapshot. Environment capture is allowlist-only and redacted.
-
-## Planned Harness Boundary
-
-`tools/` remains a thin orchestration layer around solver-native commands. Its
-first stable interface should cover environment inspection, configure/build,
-case freeze, run, artifact finalization, and validation. Numerical algorithms
-remain in `solver/`; case-specific parameters remain in `cases/`; tools must not
-silently change either.
+When work is launched from the OverlapHarness root, root harness documents are
+authoritative for orchestration, builds, cases, runs, validation, and plans.
+Solver-local agent documents are non-authoritative context for harness work;
+consult them only when useful and verify their claims against current code and
+tests.

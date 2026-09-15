@@ -17,17 +17,10 @@
 *.prof
 *.trace
 
-# Large run payloads: retain an entry in external.json instead
-/artifacts/**/raw/
-/artifacts/**/plotfiles/
-/artifacts/**/checkpoints/
-/artifacts/**/binaries/
-/artifacts/**/*.tar
-/artifacts/**/*.tar.gz
-/artifacts/**/*.tgz
-/artifacts/**/*.zip
-/artifacts/**/*.h5
-/artifacts/**/*.hdf5
-/artifacts/**/*.bp
+# Ignore machine-local artifacts by default; keep curated research records.
 /artifacts/*
-
+!/artifacts/README.md
+!/artifacts/_template/
+!/artifacts/_template/**
+!/artifacts/records/
+!/artifacts/records/**

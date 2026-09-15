@@ -1,9 +1,14 @@
-# Documentation index
+# Documentation Index
 
-- [`operations.md`](operations.md): supported dependency and solver build commands.
-- [`build-layout.md`](build-layout.md): build-matrix boundaries and artifact layout.
-- [`../cases/naca0012-pitching-2d/README.md`](../cases/naca0012-pitching-2d/README.md): first coupled moving-body validation case and acceptance criteria.
-- [`../cases/naca0012-pitching-2d/profiles/sa-t30/README.md`](../cases/naca0012-pitching-2d/profiles/sa-t30/README.md): rejected 10-rank 2D SA diagnostic profile through physical time 30.
-- [`../cases/naca0012-pitching-2d/profiles/sa-102-settings-t30/README.md`](../cases/naca0012-pitching-2d/profiles/sa-102-settings-t30/README.md): candidate 8-rank SA profile preserving the workstation-102 numerical settings through physical time 30.
-- [`exec-plans/`](exec-plans/): active and completed implementation plans.
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md): solver, provenance, and run-artifact boundaries.
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md): stable solver and harness
+  boundaries.
+- [`harness-maintenance.md`](harness-maintenance.md): decisions and rules for
+  changing the harness itself.
+- [`operations.md`](operations.md): checkout, configure, build, cleanup, and
+  solver-native checks.
+- [`build-layout.md`](build-layout.md): supported compile-time variants and
+  build isolation.
+- [`compute-resources.md`](compute-resources.md): available compute machines
+  and login methods.
+- [`../cases/README.md`](../cases/README.md): numerical-case registry and run
+  ownership.

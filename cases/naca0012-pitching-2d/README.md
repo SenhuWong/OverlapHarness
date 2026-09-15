@@ -9,6 +9,11 @@ steps. Its current qualification level is a runtime and finite-force smoke
 test. It does not yet establish agreement with experimental dynamic-stall
 data.
 
+Qualification class: long-running, human-reviewed moving-body case. A run may
+take three days or longer, depending on available resources. An automated
+`PASS` means only that the listed checks met their tolerances; accepting a
+solver revision requires human review.
+
 The case was recovered from the `102` workstation on 2026-09-10. The principal
 historical run was:
 

@@ -57,7 +57,7 @@ baseline.
 5. Validate the terminal state and write the manifest, metrics, external
    inventory, and outcome.
 6. Record the supported SA command in `docs/operations.md`, then move this plan
-   to `docs/exec-plans/completed/` with the measured outcome.
+   to `plans/completed/` with the measured outcome.
 
 ## Status
 

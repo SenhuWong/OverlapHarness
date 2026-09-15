@@ -12,11 +12,21 @@ while true; do
   state=$(squeue -h -j "$job_id" -o '%T' | head -1)
   exit_code=-
   if [[ -z $state ]]; then
-    record=$(sacct -X -n -P -j "$job_id" -o JobIDRaw,State,ExitCode |
-      awk -F '|' -v id="$job_id" '$1 == id { print $2 "|" $3; exit }')
-    state=${record%%|*}
-    if [[ $record == *'|'* ]]; then
-      exit_code=${record#*|}
+    if [[ -r $run_root/logs/run.exitcode ]]; then
+      read -r exit_code < "$run_root/logs/run.exitcode"
+      if [[ $exit_code == 0 ]]; then
+        state=COMPLETED
+      else
+        state=FAILED
+      fi
+    else
+      record=$(sacct -X -n -P -j "$job_id" -o JobIDRaw,State,ExitCode \
+        2>/dev/null | awk -F '|' -v id="$job_id" \
+        '$1 == id { print $2 "|" $3; exit }')
+      state=${record%%|*}
+      if [[ $record == *'|'* ]]; then
+        exit_code=${record#*|}
+      fi
     fi
   fi
   state=${state:-UNKNOWN}
